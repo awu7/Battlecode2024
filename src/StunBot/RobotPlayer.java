@@ -7,10 +7,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.lang.Math;
-import scala.Array;
-import scala.Tuple2;
 
 public strictfp class RobotPlayer {
+    static RobotController rc;
     static int turnCount = 0;
     static Random rng;
     static boolean isDefender;
@@ -21,7 +20,7 @@ public strictfp class RobotPlayer {
     static Direction[] stack = new Direction[10];
     static int stackSize = 0;
 
-    static void moveTowards(RobotController rc, MapLocation pos) throws GameActionException {
+    static void moveTowards(MapLocation pos) throws GameActionException {
         if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) stackSize = 0;
         if(stackSize == 0) stack[stackSize++] = rc.getLocation().directionTo(pos);
         if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) stackSize--;
@@ -53,7 +52,7 @@ public strictfp class RobotPlayer {
         }
     }
 
-    static int closestSpawn(RobotController rc, MapLocation loc) {
+    static int closestSpawn(MapLocation loc) {
         int closest = 1000;  // infinity
         for (MapLocation spawnLoc : rc.getAllySpawnLocations()) {
             int dist = loc.distanceSquaredTo(spawnLoc);
@@ -64,7 +63,7 @@ public strictfp class RobotPlayer {
         return closest;
     }
 
-    static MapLocation getClosestSpawn(RobotController rc, MapLocation loc) {
+    static MapLocation getClosestSpawn(MapLocation loc) {
         int closest = 1000;  // infinity
         MapLocation ans = rc.getAllySpawnLocations()[0];
         for (MapLocation spawnLoc : rc.getAllySpawnLocations()) {
@@ -77,17 +76,17 @@ public strictfp class RobotPlayer {
         return ans;
     }
 
-    static void write(RobotController rc, MapLocation loc) throws GameActionException {
+    static void write(MapLocation loc) throws GameActionException {
         int n = loc.x * 61 + loc.y;
         rc.writeSharedArray(0, n);
     }
 
-    static MapLocation read(RobotController rc) throws GameActionException {
+    static MapLocation read() throws GameActionException {
         int n = rc.readSharedArray(0);
         return new MapLocation(n / 61, n % 61);
     }
 
-    static void attack(RobotController rc, RobotInfo[] enemies) throws GameActionException {
+    static void attack(RobotInfo[] enemies) throws GameActionException {
         if (enemies.length == 0) {
             return;
         }
@@ -105,7 +104,8 @@ public strictfp class RobotPlayer {
     }
 
     @SuppressWarnings("unused")
-    public static void run(RobotController rc) throws GameActionException {
+    public static void run(RobotController _rc) throws GameActionException {
+        rc = _rc;
         rng = new Random(rc.getID());
         isDefender = rng.nextInt() % 100 < 70;
         if (rc.readSharedArray(0) == 0) {
@@ -126,7 +126,7 @@ public strictfp class RobotPlayer {
                             }
                         }
                     } else {
-                        MapLocation target = getClosestSpawn(rc, read(rc));
+                        MapLocation target = getClosestSpawn(read());
                         for (MapLocation spawnLoc: spawnLocs) {
                             if (spawnLoc.isWithinDistanceSquared(target, 5)) {
                                 if (rc.canSpawn(spawnLoc)) {
@@ -137,7 +137,7 @@ public strictfp class RobotPlayer {
                         }
                     }
                 } else {
-                    if (turnCount <= 200) {
+                    if (turnCount <= GameConstants.SETUP_ROUNDS) {
                         MapLocation nextLoc;
                         MapLocation[] crumbs = rc.senseNearbyCrumbs(-1);
                         if(crumbs.length > 0) {
@@ -156,7 +156,7 @@ public strictfp class RobotPlayer {
                             }
                             nextLoc = target;
                         }
-                        moveTowards(rc, nextLoc);
+                        moveTowards(nextLoc);
                     } else {
                         if (rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                             rc.buyGlobal(GlobalUpgrade.ACTION);
@@ -199,7 +199,7 @@ public strictfp class RobotPlayer {
                         } else if (turnCount > 200) {
                             isDefender = true;
                             if (enemies.length > 5) {
-                                write(rc, rc.getLocation());
+                                write(rc.getLocation());
                                 rc.writeSharedArray(1, 50);
                                 rc.setIndicatorString("Pls help!");
                             }
@@ -224,12 +224,12 @@ public strictfp class RobotPlayer {
                             }
                         }
                         shuffle();
-                        if (closestSpawn(rc, rc.getLocation()) == 0) {
+                        if (closestSpawn(rc.getLocation()) == 0) {
                             boolean moved = false;
                             for (Direction dir : directions) {
                                 if (rc.canMove(dir)) {
                                     MapLocation next = rc.getLocation().add(dir);
-                                    if (closestSpawn(rc, next) > 0) {
+                                    if (closestSpawn(next) > 0) {
                                         rc.move(dir);
                                         moved = true;
                                     }
@@ -248,7 +248,7 @@ public strictfp class RobotPlayer {
                             for (Direction dir : directions) {
                                 if (rc.canMove(dir)) {
                                     MapLocation next = rc.getLocation().add(dir);
-                                    int closest = closestSpawn(rc, next);
+                                    int closest = closestSpawn(next);
                                     if (closest > 0 && closest <= 6) {
                                         rc.move(dir);
                                         rc.setIndicatorString("Moved, within " + closest);
@@ -259,32 +259,22 @@ public strictfp class RobotPlayer {
                             for (Direction dir : directions) {
                                 if (rc.canMove(dir)) {
                                     MapLocation next = rc.getLocation().add(dir);
-                                    if (closestSpawn(rc, next) > 0) {
-                                        rc.move(dir);
-                                    }
-                                }
-                            }
-                        } else if (turnCount < 200) {
-                            rc.setIndicatorString("I'm wandering aimlessly.");
-                            for (Direction dir : directions) {
-                                if (rc.canMove(dir)) {
-                                    MapLocation next = rc.getLocation().add(dir);
-                                    if (closestSpawn(rc, next) > 0) {
+                                    if (closestSpawn(next) > 0) {
                                         rc.move(dir);
                                     }
                                 }
                             }
                         } else {
                             if (rc.readSharedArray(0) == MAX_ARRAY) {
-                                MapLocation closest = getClosestSpawn(rc, rc.getLocation());
-                                moveTowards(rc, closest);
+                                MapLocation closest = getClosestSpawn(rc.getLocation());
+                                moveTowards(closest);
                             } else {
-                                MapLocation target = read(rc);
+                                MapLocation target = read();
                                 rc.setIndicatorString("Rushing to help at (" + target.x + ", " + target.y + ")!");
-                                moveTowards(rc, target);
+                                moveTowards(target);
                             }
                         }
-                        attack(rc, enemies);
+                        attack(enemies);
                     }
                 }
             } catch (GameActionException e) {
