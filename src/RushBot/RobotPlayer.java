@@ -36,6 +36,8 @@ public strictfp class RobotPlayer {
                 }
                 else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
+                } else if(rc.hasFlag() && rc.senseMapInfo(rc.getLocation()).getSpawnZoneTeam() == (rc.getTeam() == Team.A ? 1 : 2)) {
+                    // wait, we need to drop off a flag at our spawn zone
                 } else {
                     if (rc.canPickupFlag(rc.getLocation()) && turnCount >= GameConstants.SETUP_ROUNDS){
                         rc.pickupFlag(rc.getLocation());
