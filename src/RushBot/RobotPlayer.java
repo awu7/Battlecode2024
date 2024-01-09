@@ -83,12 +83,7 @@ public strictfp class RobotPlayer {
                     // If we are holding an enemy flag, singularly focus on moving towards
                     // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
                     // to make sure setup phase has ended.
-                    if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                        MapLocation firstLoc = spawnLocs[0];
-                        Direction dir = rc.getLocation().directionTo(firstLoc);
-                        if (rc.canMove(dir)) rc.move(dir);
-                    }
+
                     // Move and attack randomly if no objective.
                     MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
                     MapInfo[] possibleInfos = rc.senseNearbyMapInfos();
@@ -100,7 +95,10 @@ public strictfp class RobotPlayer {
                         targetTurnsSpent = 0;
                     }
                     if (targetCell.x == -1) {
-                        if (possibleFlags.length >= 1) {
+                        if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
+                            MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+                            targetCell = spawnLocs[0];
+                        } else if (possibleFlags.length >= 1) {
                             FlagInfo targetFlag = possibleFlags[0];
                             if (targetFlag.getTeam() == rc.getTeam()) {
                                 System.out.println("This is wrong");
