@@ -103,7 +103,7 @@ public strictfp class RobotPlayer {
     public static void run(RobotController _rc) throws GameActionException {
         rc = _rc;
         rng = new Random(rc.getID());
-        isDefender = rng.nextInt() % 100 < 70;
+        isDefender = rng.nextInt(10) <= 7;
         if (rc.readSharedArray(0) == 0) {
             rc.writeSharedArray(0, MAX_ARRAY);
         }
@@ -178,7 +178,7 @@ public strictfp class RobotPlayer {
                                     for (Direction dir : directions) {
                                         MapLocation next = loc.add(dir);
                                         if (rc.canBuild(TrapType.EXPLOSIVE, next)) {
-                                            if (rng.nextInt() % 100 < 30) {
+                                            if (rng.nextInt(10) <= 3) {
                                                 rc.build(TrapType.STUN, next);
                                             } else {
                                                 rc.build(TrapType.EXPLOSIVE, next);
