@@ -95,6 +95,12 @@ public strictfp class RobotPlayer {
                 minHealth = enemy.health;
                 target = enemy.getLocation();
             }
+            if (enemy.hasFlag()) {
+                if (rc.canAttack(enemy.location)) {
+                    rc.attack(enemy.location);
+                    return;
+                }
+            }
         }
         if (rc.canAttack(target)) {
             rc.attack(target);
