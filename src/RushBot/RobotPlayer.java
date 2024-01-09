@@ -36,8 +36,6 @@ public strictfp class RobotPlayer {
                 }
                 else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
-                } else if(rc.hasFlag() && rc.senseMapInfo(rc.getLocation()).getSpawnZoneTeam() == (rc.getTeam() == Team.A ? 1 : 2)) {
-                    // wait, we need to drop off a flag at our spawn zone
                 } else {
                     if (rc.canPickupFlag(rc.getLocation()) && turnCount >= GameConstants.SETUP_ROUNDS){
                         rc.pickupFlag(rc.getLocation());
@@ -54,6 +52,7 @@ public strictfp class RobotPlayer {
                         }
                     }
                     if (rc.hasFlag()) adjFlag = false;
+                    if(rc.senseMapInfo(rc.getLocation()).getSpawnZoneTeam() == (rc.getTeam() == Team.A ? 1 : 2)) adjFlag = false;
                     MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
                     MapInfo[] possibleInfos = rc.senseNearbyMapInfos();
                     MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
@@ -68,7 +67,7 @@ public strictfp class RobotPlayer {
                             int mn = 1000000000;
                             for (int i = 0; i < spawnLocs.length; i++) {
                                 int dist = spawnLocs[i].distanceSquaredTo(rc.getLocation());
-                                if (dist < mn) {
+                                if (dist < mn && dist > 0) { // Dist > 0 is necessary to avoid bread goal glitch
                                     mn = dist;
                                     targetCell = spawnLocs[i];
                                 }
@@ -135,9 +134,9 @@ public strictfp class RobotPlayer {
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
             if(rc.onTheMap(nextLoc)) {
                 if(!moveCooldownDone) {
-                    if(!rc.senseMapInfo(nextLoc).isWall()) break;
+                    if(!rc.senseMapInfo(nextLoc).isWall() && (!rc.senseMapInfo(nextLoc).isWater() || !rc.hasFlag())) break;
                 } else {
-                    if(rc.canMove(stack[stackSize - 1]) || rc.senseMapInfo(nextLoc).isWater()) break;
+                    if(rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !rc.hasFlag())) break;
                 }
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
                 if(rc.hasFlag() && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
