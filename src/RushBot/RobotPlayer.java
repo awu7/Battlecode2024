@@ -54,10 +54,7 @@ public strictfp class RobotPlayer {
                         targetTurnsSpent = 0;
                     }
                     if (targetCell.x == -1) {
-                        if (adjFlag) {
-                            targetCell = rc.getLocation().add(moveTowards(rc, potentialCarrier).opposite());
-                            exactTarget = true;
-                        } else if ((rc.hasFlag()) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
+                        if ((rc.hasFlag()) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
                             MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                             int mn = 1000000000;
                             for (int i = 0; i < spawnLocs.length; i++) {
@@ -90,7 +87,6 @@ public strictfp class RobotPlayer {
                         rc.setIndicatorString("Attacking " + String.valueOf(possibleEnemies[0].getLocation().x) + " " + String.valueOf(possibleEnemies[0].getLocation().y));
                         rc.attack(possibleEnemies[0].getLocation());
                     }
-                    Direction dir = moveTowards(rc, targetCell);
                     if (!adjFlag) {
                         moveBetter(rc, targetCell);
                     }
