@@ -5,6 +5,7 @@ import battlecode.common.*;
 import java.util.*;
 
 public strictfp class RobotPlayer {
+    static RobotController rc;
     static Random rng;
     static final Direction[] directions = {
             Direction.NORTH,
@@ -16,13 +17,16 @@ public strictfp class RobotPlayer {
             Direction.WEST,
             Direction.NORTHWEST,
     };
-    public static void run(RobotController rc) throws GameActionException {
+    static int turnCount = 0;
+    public static void run(RobotController _rc) throws GameActionException {
+        rc = _rc;
         rng = new Random(rc.getID());
         MapLocation targetCell = new MapLocation(-1, -1);
         int targetTurnsSpent = 0;
         boolean exactTarget = false;
         while (true) {
-            if (rng.nextInt(60) == 10) System.out.println("e");
+            turnCount++;
+            if (rng.nextInt(200) == 10) System.out.println("e");
             ++targetTurnsSpent;
             try {
                 if (!rc.isSpawned()) {
@@ -30,10 +34,14 @@ public strictfp class RobotPlayer {
                     MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
                     if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
                 }
-                else {
-                    if (rc.canPickupFlag(rc.getLocation()) && rc.senseNearbyFlags(1, rc.getTeam().opponent()).length>=1){
+                else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
+                    // wait, we need to pick up a flag dropped by a teammate
+                } else {
+                    if (rc.canPickupFlag(rc.getLocation()) && turnCount >= GameConstants.SETUP_ROUNDS){
                         rc.pickupFlag(rc.getLocation());
                         rc.setIndicatorString("Holding a flag!");
+                        targetCell = new MapLocation(-1, -1);
+                        targetTurnsSpent = 0;
                     }
                     boolean adjFlag = false;
                     MapLocation potentialCarrier = null;
@@ -88,7 +96,7 @@ public strictfp class RobotPlayer {
                         rc.attack(possibleEnemies[0].getLocation());
                     }
                     if (!adjFlag) {
-                        moveBetter(rc, targetCell);
+                        moveBetter(targetCell);
                     }
                     for (RobotInfo ally : rc.senseNearbyRobots(-1, rc.getTeam())) {
                         if (rc.canHeal(ally.getLocation())) {
@@ -104,69 +112,43 @@ public strictfp class RobotPlayer {
                 System.out.println("Exception");
                 e.printStackTrace();
             } finally {
-                if (rc.onTheMap(targetCell) && rc.isSpawned()) {
+                if (rc.onTheMap(targetCell) && rc.isSpawned() && rc.hasFlag()) {
                     rc.setIndicatorLine(rc.getLocation(), targetCell, 0, 255, 0);
                 }
                 Clock.yield();
             }
         }
     }
-    public static Direction moveTowards(RobotController rc, MapLocation target) {
-        // Assume no obstacles exist
-        MapLocation loc = rc.getLocation();
-        Direction newdir;
-        if (target.y > loc.y) {
-            if (target.x > loc.x) {
-                newdir = Direction.NORTHEAST;
-            } else if (target.x < loc.x) {
-                newdir = Direction.NORTHWEST;
-            } else {
-                newdir = Direction.NORTH;
-            }
-        } else if (target.y < loc.y) {
-            if (target.x > loc.x) {
-                newdir = Direction.SOUTHEAST;
-            } else if (target.x < loc.x) {
-                newdir = Direction.SOUTHWEST;
-            } else {
-                newdir = Direction.SOUTH;
-            }
-        } else {
-            if (target.x > loc.x) {
-                newdir = Direction.EAST;
-            } else if (target.x < loc.x) {
-                newdir = Direction.WEST;
-            } else {
-                newdir = directions[rng.nextInt(directions.length)];
-            }
-        }
-        return newdir;
-    }
     static Direction[] stack = new Direction[10];
     static int stackSize = 0;
-    static void moveBetter(RobotController rc, MapLocation pos) throws GameActionException {
-        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(32) == 0)) stackSize = 0;
+    static int turnDir = 0;
+    static void moveBetter(MapLocation pos) throws GameActionException {
+        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) stackSize = 0;
         if(stackSize == 0) stack[stackSize++] = rc.getLocation().directionTo(pos);
+        if(stackSize == 1) turnDir = rng.nextInt(2);
         if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) stackSize--;
-        while(stackSize < 8 && !rc.canMove(stack[stackSize - 1]) && !rc.canFill(rc.getLocation().add(stack[stackSize - 1]))) {
-            stack[stackSize] = stack[stackSize - 1].rotateLeft();
+        MapLocation nextLoc;
+        RobotInfo nextLocRobot;
+        while(stackSize < 8) {
+            if(rc.canMove(stack[stackSize - 1])) break;
+            nextLoc = rc.getLocation().add(stack[stackSize - 1]);
+            if(rc.canFill(nextLoc)) break;
+            if(rc.onTheMap(nextLoc)) {
+                nextLocRobot = rc.senseRobotAtLocation(nextLoc);
+                if(rc.hasFlag() && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
+            }
+            stack[stackSize] = turnDir == 0 ? stack[stackSize - 1].rotateLeft() : stack[stackSize - 1].rotateRight();
             stackSize++;
         }
-        if(stackSize >= 8) stackSize = 1;
-        if(rc.canFill(rc.getLocation().add(stack[stackSize - 1]))) rc.fill(rc.getLocation().add(stack[stackSize - 1]));
+        if(stackSize >= 8) {
+            stackSize = 1;
+        }
+        nextLoc = rc.getLocation().add(stack[stackSize - 1]);
+        nextLocRobot = rc.senseRobotAtLocation(nextLoc);
+        if(rc.canFill(nextLoc)) rc.fill(nextLoc);
         if(rc.canMove(stack[stackSize - 1])) rc.move(stack[stackSize - 1]);
-    }
-    public static void updateEnemyRobots(RobotController rc) throws GameActionException{
-        RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-        if (enemyRobots.length != 0){
-            MapLocation[] enemyLocations = new MapLocation[enemyRobots.length];
-            for (int i = 0; i < enemyRobots.length; i++){
-                enemyLocations[i] = enemyRobots[i].getLocation();
-            }
-            if (rc.canWriteSharedArray(0, enemyRobots.length)){
-                rc.writeSharedArray(0, enemyRobots.length);
-                int numEnemies = rc.readSharedArray(0);
-            }
+        if(rc.hasFlag() && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) {
+            rc.dropFlag(nextLoc);
         }
     }
 }
