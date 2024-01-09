@@ -1,4 +1,4 @@
-package RushBotOld;
+package OldRushBot;
 
 import battlecode.common.*;
 
@@ -98,11 +98,11 @@ public strictfp class RobotPlayer {
                         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
                             MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                             int mn = 1000000000;
-                            for (int i = 0; i < spawnLocs.length; i++) {
-                                int dist = spawnLocs[i].distanceSquaredTo(rc.getLocation());
+                            for (MapLocation spawnLoc : spawnLocs) {
+                                int dist = spawnLoc.distanceSquaredTo(rc.getLocation());
                                 if (dist < mn) {
                                     mn = dist;
-                                    targetCell = spawnLocs[i];
+                                    targetCell = spawnLoc;
                                 }
                             }
                         } else if (possibleFlags.length >= 1) {
