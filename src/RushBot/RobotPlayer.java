@@ -57,6 +57,7 @@ public strictfp class RobotPlayer {
         rng = new Random(rc.getID());
         MapLocation targetCell = new MapLocation(-1, -1);
         int targetTurnsSpent = 0;
+        boolean exactTarget = false;
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
@@ -83,32 +84,57 @@ public strictfp class RobotPlayer {
                     // If we are holding an enemy flag, singularly focus on moving towards
                     // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
                     // to make sure setup phase has ended.
-
+                    boolean adjFlag = false;
+                    MapLocation potentialCarrier = null;
+                    FlagInfo[] nearbyFlags = rc.senseNearbyFlags(9, rc.getTeam().opponent());
+                    for (FlagInfo flag : nearbyFlags) {
+                        if (flag.isPickedUp()) {
+                            adjFlag = true;
+                            potentialCarrier = flag.getLocation();
+                        }
+                    }
+                    if (rc.hasFlag()) adjFlag = false;
                     // Move and attack randomly if no objective.
                     MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
                     MapInfo[] possibleInfos = rc.senseNearbyMapInfos();
                     MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
                     FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
                     Direction newdir;
-                    if (targetCell == rc.getLocation() || targetTurnsSpent > 10+rng.nextInt(5)) {
+                    if (targetCell.distanceSquaredTo(rc.getLocation()) < 1 || (targetCell.distanceSquaredTo(rc.getLocation()) < 6 && !exactTarget) || targetTurnsSpent > 10+rng.nextInt(5) || adjFlag) {
                         targetCell = new MapLocation(-1, -1);
                         targetTurnsSpent = 0;
                     }
                     if (targetCell.x == -1) {
-                        if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
+                        if (adjFlag) {
+                            targetCell = rc.getLocation().add(moveTowards(rc, potentialCarrier).opposite());
+                            exactTarget = true;
+                        } else if ((rc.hasFlag()) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
                             MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                            targetCell = spawnLocs[0];
+                            int mn = 1000000000;
+                            for (int i = 0; i < spawnLocs.length; i++) {
+                                int dist = spawnLocs[i].distanceSquaredTo(rc.getLocation());
+                                if (dist < mn) {
+                                    mn = dist;
+                                    targetCell = spawnLocs[i];
+                                }
+                            }
+                            exactTarget = true;
                         } else if (possibleFlags.length >= 1) {
                             FlagInfo targetFlag = possibleFlags[0];
                             targetCell = targetFlag.getLocation();
+                            exactTarget = true;
                         } else if (possibleCrumbs.length >= 1) {
                             targetCell = possibleCrumbs[0];
+                            exactTarget = true;
                         } else if (possibleSenses.length >= 1) {
                             targetCell = possibleSenses[0];
+                            exactTarget = false;
                         } else {
                             targetCell = possibleInfos[rng.nextInt(possibleInfos.length)].getMapLocation();
+                            exactTarget = false;
                         }
                     }
+                    rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
                     RobotInfo[] possibleEnemies = rc.senseNearbyRobots(4, rc.getTeam().opponent());
                     if (possibleEnemies.length >= 1 && rc.canAttack(possibleEnemies[0].getLocation())) {
                         //System.out.println("Attacking");
@@ -118,18 +144,8 @@ public strictfp class RobotPlayer {
                     }
                     Direction dir = moveTowards(rc, targetCell);
                     MapLocation nextLoc = rc.getLocation().add(dir);
-                    for (int i = 0; i < 8; i++) {
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
-                            break;
-                        } else if (rc.canAttack(nextLoc)) {
-                            rc.attack(nextLoc);
-                            break;
-                        } else if (rc.canFill(nextLoc)) {
-                            rc.fill(nextLoc);
-                            break;
-                        }
-                        dir = dir.rotateRight();
+                    if (!adjFlag) {
+                        moveBetter(rc, targetCell);
                     }
                     // Rarely attempt placing traps behind the robot.
                     MapLocation prevLoc = rc.getLocation().subtract(dir);
@@ -137,6 +153,12 @@ public strictfp class RobotPlayer {
                         rc.build(TrapType.EXPLOSIVE, prevLoc);
                     // We can also move our code into different methods or classes to better organize it!
                     updateEnemyRobots(rc);
+                    for (RobotInfo ally : rc.senseNearbyRobots(-1, rc.getTeam())) {
+                        if (rc.canHeal(ally.getLocation())) {
+                            rc.heal(ally.getLocation());
+                            break;
+                        }
+                    }
                 }
 
             } catch (GameActionException e) {
@@ -195,6 +217,20 @@ public strictfp class RobotPlayer {
             }
         }
         return newdir;
+    }
+    static Direction[] stack = new Direction[10];
+    static int stackSize = 0;
+    static void moveBetter(RobotController rc, MapLocation pos) throws GameActionException {
+        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) stackSize = 0;
+        if(stackSize == 0) stack[stackSize++] = rc.getLocation().directionTo(pos);
+        if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) stackSize--;
+        while(stackSize < 8 && !rc.canMove(stack[stackSize - 1]) && !rc.canFill(rc.getLocation().add(stack[stackSize - 1]))) {
+            stack[stackSize] = stack[stackSize - 1].rotateLeft();
+            stackSize++;
+        }
+        if(stackSize >= 8) stackSize = 1;
+        if(rc.canFill(rc.getLocation().add(stack[stackSize - 1]))) rc.fill(rc.getLocation().add(stack[stackSize - 1]));
+        if(rc.canMove(stack[stackSize - 1])) rc.move(stack[stackSize - 1]);
     }
     public static void updateEnemyRobots(RobotController rc) throws GameActionException{
         // Sensing methods can be passed in a radius of -1 to automatically
