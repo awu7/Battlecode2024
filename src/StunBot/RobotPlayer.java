@@ -18,23 +18,21 @@ public strictfp class RobotPlayer {
     static int movesLeft = 0;
     static MapLocation target;
 
-    static MapLocation prevTarget = null;
     static Direction[] stack = new Direction[10];
     static int stackSize = 0;
 
     static void moveTowards(RobotController rc, MapLocation pos) throws GameActionException {
-        if(pos != prevTarget || rng.nextInt(8) == 0) stackSize = 0;
-        prevTarget = pos;
+        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) stackSize = 0;
         if(stackSize == 0) stack[stackSize++] = rc.getLocation().directionTo(pos);
         if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) stackSize--;
-        while(stackSize < 8 && !rc.canMove(stack[stackSize - 1])) {
+        while(stackSize < 8 && !rc.canMove(stack[stackSize - 1]) && !rc.canFill(rc.getLocation().add(stack[stackSize - 1]))) {
             stack[stackSize] = stack[stackSize - 1].rotateLeft();
             stackSize++;
         }
         if(stackSize >= 8) stackSize = 1;
+        if(rc.canFill(rc.getLocation().add(stack[stackSize - 1]))) rc.fill(rc.getLocation().add(stack[stackSize - 1]));
         if(rc.canMove(stack[stackSize - 1])) rc.move(stack[stackSize - 1]);
     }
-
     static Direction[] directions = {
             Direction.NORTH,
             Direction.NORTHEAST,
@@ -200,9 +198,10 @@ public strictfp class RobotPlayer {
                             isDefender = false;
                         } else if (turnCount > 200) {
                             isDefender = true;
-                            if (enemies.length > 7) {
+                            if (enemies.length > 5) {
                                 write(rc, rc.getLocation());
                                 rc.writeSharedArray(1, 50);
+                                rc.setIndicatorString("Pls help!");
                             }
                         }
                         if (rc.readSharedArray(0) != MAX_ARRAY) {
@@ -280,8 +279,9 @@ public strictfp class RobotPlayer {
                                 MapLocation closest = getClosestSpawn(rc, rc.getLocation());
                                 moveTowards(rc, closest);
                             } else {
-                                rc.setIndicatorString("Rushing to help at (" + rc.getLocation().x + ", " + rc.getLocation().y + ")!");
-                                moveTowards(rc, read(rc));
+                                MapLocation target = read(rc);
+                                rc.setIndicatorString("Rushing to help at (" + target.x + ", " + target.y + ")!");
+                                moveTowards(rc, target);
                             }
                         }
                         attack(rc, enemies);
