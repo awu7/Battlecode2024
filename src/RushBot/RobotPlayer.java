@@ -39,8 +39,7 @@ public strictfp class RobotPlayer {
                 } else {
                     if (rc.canPickupFlag(rc.getLocation()) && turnCount >= GameConstants.SETUP_ROUNDS){
                         rc.pickupFlag(rc.getLocation());
-                        rc.setIndicatorString("Holding a flag!");
-                        targetCell = new MapLocation(-1, -1);
+                        targetCell = new MapLocation(-1, -1); // retarget now that we have the flag
                         targetTurnsSpent = 0;
                     }
                     boolean adjFlag = false;
@@ -112,7 +111,7 @@ public strictfp class RobotPlayer {
                 System.out.println("Exception");
                 e.printStackTrace();
             } finally {
-                if (rc.onTheMap(targetCell) && rc.isSpawned() && rc.hasFlag()) {
+                if (rc.onTheMap(targetCell) && rc.isSpawned()) {
                     rc.setIndicatorLine(rc.getLocation(), targetCell, 0, 255, 0);
                 }
                 Clock.yield();
@@ -127,13 +126,17 @@ public strictfp class RobotPlayer {
         if(stackSize == 0) stack[stackSize++] = rc.getLocation().directionTo(pos);
         if(stackSize == 1) turnDir = rng.nextInt(2);
         if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) stackSize--;
+        boolean moveCooldownDone = rc.getMovementCooldownTurns() == 0;
         MapLocation nextLoc;
         RobotInfo nextLocRobot;
         while(stackSize < 8) {
-            if(rc.canMove(stack[stackSize - 1])) break;
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
-            if(rc.canFill(nextLoc)) break;
             if(rc.onTheMap(nextLoc)) {
+                if(!moveCooldownDone) {
+                    if(!rc.senseMapInfo(nextLoc).isWall()) break;
+                } else {
+                    if(rc.canMove(stack[stackSize - 1]) || rc.senseMapInfo(nextLoc).isWater()) break;
+                }
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
                 if(rc.hasFlag() && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
             }
