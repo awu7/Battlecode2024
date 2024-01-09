@@ -1,7 +1,9 @@
 package RushBot;
 
 import battlecode.common.*;
+import battlecode.world.Flag;
 
+import java.awt.*;
 import java.util.*;
 
 public strictfp class RobotPlayer {
@@ -90,19 +92,53 @@ public strictfp class RobotPlayer {
                     }
                     rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
                     RobotInfo[] possibleEnemies = rc.senseNearbyRobots(4, rc.getTeam().opponent());
-                    if (possibleEnemies.length >= 1 && rc.canAttack(possibleEnemies[0].getLocation())) {
-                        //System.out.println("Attacking");
-                        rc.setIndicatorString("Attacking " + String.valueOf(possibleEnemies[0].getLocation().x) + " " + String.valueOf(possibleEnemies[0].getLocation().y));
-                        rc.attack(possibleEnemies[0].getLocation());
+                    // Attacking section
+                    // Should change to prioritise enemy flag carriers
+                    FlagInfo[] nearbyAllyFlags = rc.senseNearbyFlags(-1, rc.getTeam());
+                    if (possibleEnemies.length >= 1) { // Check if there are enemies in range
+                        // Get all nearby ally flags within attacking range and check if they are being carried
+                        boolean didAttack = false;
+                        for (FlagInfo flag : nearbyAllyFlags) {
+                            if (flag.isPickedUp() && rc.canAttack(flag.getLocation())) {
+                                rc.attack(flag.getLocation());
+                                didAttack = true;
+                                break;
+                            }
+                        }
+                        if (!didAttack && rc.canAttack(possibleEnemies[0].getLocation())) {
+                            rc.attack(possibleEnemies[0].getLocation());
+                        }
                     }
                     if (!adjFlag) {
                         moveBetter(targetCell);
                     }
-                    for (RobotInfo ally : rc.senseNearbyRobots(-1, rc.getTeam())) {
-                        if (rc.canHeal(ally.getLocation())) {
-                            rc.heal(ally.getLocation());
+                    // Also prioritise flag carriers when healing
+                    RobotInfo[] nearbyAllyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
+                    boolean didHeal = false;
+                    for (FlagInfo flag : nearbyFlags) {
+                        if (flag.isPickedUp() && rc.canHeal(flag.getLocation())) {
+                            rc.heal(flag.getLocation());
+                            didHeal = true;
                             break;
                         }
+                    }
+                    if (!didHeal) {
+                        for (RobotInfo ally : nearbyAllyRobots) {
+                            if (rc.canHeal(ally.getLocation())) {
+                                rc.heal(ally.getLocation());
+                                break;
+                            }
+                        }
+                    }
+                    // Attempt to buy global upgrades
+                    // For rush bot, first buy action, then capturing
+                    // (Healing, although increasing individual lifetimes,
+                    // decreases the xp gain per health point (i may be wrong pls correct me))
+                    if (rc.getRoundNum() >= 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
+                        rc.buyGlobal(GlobalUpgrade.ACTION);
+                    }
+                    if (rc.getRoundNum() >= 1500 && rc.canBuyGlobal(GlobalUpgrade.CAPTURING)) {
+                        rc.buyGlobal(GlobalUpgrade.CAPTURING);
                     }
                 }
             } catch (GameActionException e) {
