@@ -3,6 +3,10 @@
 /matches
 /client
 
+# Testing bots
+
+ignore*
+
 ###### GRADLE ######
 
 .gradle

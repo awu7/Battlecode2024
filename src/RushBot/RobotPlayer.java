@@ -109,6 +109,13 @@ public strictfp class RobotPlayer {
                             targetCell = possibleInfos[rng.nextInt(possibleInfos.length)].getMapLocation();
                         }
                     }
+                    RobotInfo[] possibleEnemies = rc.senseNearbyRobots(4, rc.getTeam().opponent());
+                    if (possibleEnemies.length >= 1 && rc.canAttack(possibleEnemies[0].getLocation())) {
+                        //System.out.println("Attacking");
+                        rc.setIndicatorString("Attacking " + String.valueOf(possibleEnemies[0].getLocation().x) + " " + String.valueOf(possibleEnemies[0].getLocation().y));
+                        rc.attack(possibleEnemies[0].getLocation());
+                        //rc.setIndicatorLine(rc.getLocation(), possibleEnemies[0].getLocation(), 255, 0, 0);
+                    }
                     Direction dir = moveTowards(rc, targetCell);
                     MapLocation nextLoc = rc.getLocation().add(dir);
                     for (int i = 0; i < 8; i++) {
@@ -123,10 +130,6 @@ public strictfp class RobotPlayer {
                             break;
                         }
                         dir = dir.rotateRight();
-                    }
-                    RobotInfo[] possibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                    if (possibleEnemies.length >= 1 && rc.canAttack(possibleEnemies[0].getLocation())) {
-                        rc.attack(possibleEnemies[0].getLocation());
                     }
                     // Rarely attempt placing traps behind the robot.
                     MapLocation prevLoc = rc.getLocation().subtract(dir);
@@ -150,6 +153,9 @@ public strictfp class RobotPlayer {
                 e.printStackTrace();
 
             } finally {
+                if (rc.onTheMap(targetCell) && rc.isSpawned()) {
+                    rc.setIndicatorLine(rc.getLocation(), targetCell, 0, 255, 0);
+                }
                 // Signify we've done everything we want to do, thereby ending our turn.
                 // This will make our code wait until the next turn, and then perform this loop again.
                 Clock.yield();
@@ -195,7 +201,7 @@ public strictfp class RobotPlayer {
         // use the largest possible value.
         RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
         if (enemyRobots.length != 0){
-            rc.setIndicatorString("There are nearby enemy robots! Scary!");
+            //rc.setIndicatorString("There are nearby enemy robots! Scary!");
             // Save an array of locations with enemy robots in them for future use.
             MapLocation[] enemyLocations = new MapLocation[enemyRobots.length];
             for (int i = 0; i < enemyRobots.length; i++){
