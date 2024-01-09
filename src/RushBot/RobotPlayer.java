@@ -76,7 +76,7 @@ public strictfp class RobotPlayer {
                     if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
                 }
                 else{ // Robot is spawned
-                    if (rc.canPickupFlag(rc.getLocation())){
+                    if (rc.canPickupFlag(rc.getLocation()) && rc.senseNearbyFlags(1, rc.getTeam().opponent()).length>=1){
                         rc.pickupFlag(rc.getLocation());
                         rc.setIndicatorString("Holding a flag!");
                     }
@@ -90,7 +90,7 @@ public strictfp class RobotPlayer {
                     MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
                     FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
                     Direction newdir;
-                    if (targetCell == rc.getLocation() || targetTurnsSpent > 40) {
+                    if (targetCell == rc.getLocation() || targetTurnsSpent > 10+rng.nextInt(5)) {
                         targetCell = new MapLocation(-1, -1);
                         targetTurnsSpent = 0;
                     }
@@ -100,9 +100,6 @@ public strictfp class RobotPlayer {
                             targetCell = spawnLocs[0];
                         } else if (possibleFlags.length >= 1) {
                             FlagInfo targetFlag = possibleFlags[0];
-                            if (targetFlag.getTeam() == rc.getTeam()) {
-                                System.out.println("This is wrong");
-                            }
                             targetCell = targetFlag.getLocation();
                         } else if (possibleCrumbs.length >= 1) {
                             targetCell = possibleCrumbs[0];
@@ -114,22 +111,22 @@ public strictfp class RobotPlayer {
                     }
                     Direction dir = moveTowards(rc, targetCell);
                     MapLocation nextLoc = rc.getLocation().add(dir);
-                    if (rc.canMove(dir)){
-                        rc.move(dir);
-                    } else if (rc.canAttack(nextLoc)){
-                        rc.attack(nextLoc);
-                        System.out.println("Take that! Damaged an enemy that was in our way!");
-                    } else if (rc.canFill(nextLoc)) {
-                        rc.fill(nextLoc);
-                        System.out.println("Filled square");
-                    } else {
-                        for (int i = 0; i < 7; i++) {
-                            dir = dir.rotateRight();
-                            if (rc.canMove(dir)) {
-                                rc.move(dir);
-                                break;
-                            }
+                    for (int i = 0; i < 8; i++) {
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                            break;
+                        } else if (rc.canAttack(nextLoc)) {
+                            rc.attack(nextLoc);
+                            break;
+                        } else if (rc.canFill(nextLoc)) {
+                            rc.fill(nextLoc);
+                            break;
                         }
+                        dir = dir.rotateRight();
+                    }
+                    RobotInfo[] possibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+                    if (possibleEnemies.length >= 1 && rc.canAttack(possibleEnemies[0].getLocation())) {
+                        rc.attack(possibleEnemies[0].getLocation());
                     }
                     // Rarely attempt placing traps behind the robot.
                     MapLocation prevLoc = rc.getLocation().subtract(dir);
