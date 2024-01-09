@@ -10,15 +10,23 @@ import java.lang.Math;
 
 public strictfp class RobotPlayer {
     static RobotController rc;
-    static int turnCount = 0;
     static Random rng;
     static boolean isDefender;
     static final int MAX_ARRAY = 65535;
     static int movesLeft = 0;
     static MapLocation target;
-
     static Direction[] stack = new Direction[10];
     static int stackSize = 0;
+    static Direction[] directions = {
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
 
     static void moveTowards(MapLocation pos) throws GameActionException {
         if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) stackSize = 0;
@@ -32,16 +40,6 @@ public strictfp class RobotPlayer {
         if(rc.canFill(rc.getLocation().add(stack[stackSize - 1]))) rc.fill(rc.getLocation().add(stack[stackSize - 1]));
         if(rc.canMove(stack[stackSize - 1])) rc.move(stack[stackSize - 1]);
     }
-    static Direction[] directions = {
-            Direction.NORTH,
-            Direction.NORTHEAST,
-            Direction.EAST,
-            Direction.SOUTHEAST,
-            Direction.SOUTH,
-            Direction.SOUTHWEST,
-            Direction.WEST,
-            Direction.NORTHWEST,
-    };
 
     static void shuffle() {
         for (int i = 7; i > 0; --i) {
@@ -102,8 +100,6 @@ public strictfp class RobotPlayer {
             rc.attack(target);
         }
     }
-
-    @SuppressWarnings("unused")
     public static void run(RobotController _rc) throws GameActionException {
         rc = _rc;
         rng = new Random(rc.getID());
@@ -112,8 +108,6 @@ public strictfp class RobotPlayer {
             rc.writeSharedArray(0, MAX_ARRAY);
         }
         while (true) {
-            turnCount += 1;
-
             try {
                 if (!rc.isSpawned()) {
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
@@ -137,7 +131,7 @@ public strictfp class RobotPlayer {
                         }
                     }
                 } else {
-                    if (turnCount <= GameConstants.SETUP_ROUNDS) {
+                    if (rc.getRoundNum() <= GameConstants.SETUP_ROUNDS) {
                         MapLocation nextLoc;
                         MapLocation[] crumbs = rc.senseNearbyCrumbs(-1);
                         if(crumbs.length > 0) {
@@ -196,7 +190,7 @@ public strictfp class RobotPlayer {
                         }
                         if (rc.senseNearbyFlags(-1).length == 0) {
                             isDefender = false;
-                        } else if (turnCount > 200) {
+                        } else if (rc.getRoundNum() > 200) {
                             isDefender = true;
                             if (enemies.length > 5) {
                                 write(rc.getLocation());
