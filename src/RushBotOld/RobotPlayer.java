@@ -1,4 +1,4 @@
-package RushBot;
+package RushBotOld;
 
 import battlecode.common.*;
 
@@ -125,7 +125,19 @@ public strictfp class RobotPlayer {
                     }
                     Direction dir = moveTowards(rc, targetCell);
                     MapLocation nextLoc = rc.getLocation().add(dir);
-                    moveBetter(rc, targetCell);
+                    for (int i = 0; i < 8; i++) {
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                            break;
+                        } else if (rc.canAttack(nextLoc)) {
+                            rc.attack(nextLoc);
+                            break;
+                        } else if (rc.canFill(nextLoc)) {
+                            rc.fill(nextLoc);
+                            break;
+                        }
+                        dir = dir.rotateRight();
+                    }
                     // Rarely attempt placing traps behind the robot.
                     MapLocation prevLoc = rc.getLocation().subtract(dir);
                     if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
@@ -190,19 +202,6 @@ public strictfp class RobotPlayer {
             }
         }
         return newdir;
-    }
-    static Direction[] stack = new Direction[10];
-    static int stackSize = 0;
-    static void moveBetter(RobotController rc, MapLocation pos) throws GameActionException {
-        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) stackSize = 0;
-        if(stackSize == 0) stack[stackSize++] = rc.getLocation().directionTo(pos);
-        if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) stackSize--;
-        while(stackSize < 8 && !rc.canMove(stack[stackSize - 1])) {
-            stack[stackSize] = stack[stackSize - 1].rotateLeft();
-            stackSize++;
-        }
-        if(stackSize >= 8) stackSize = 1;
-        if(rc.canMove(stack[stackSize - 1])) rc.move(stack[stackSize - 1]);
     }
     public static void updateEnemyRobots(RobotController rc) throws GameActionException{
         // Sensing methods can be passed in a radius of -1 to automatically 
