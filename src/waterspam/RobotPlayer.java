@@ -1,4 +1,4 @@
-package examplefuncsplayer;
+package waterspam;
 
 import battlecode.common.*;
 
@@ -29,20 +29,27 @@ public strictfp class RobotPlayer {
      * import at the top of this file. Here, we *seed* the RNG with a constant number (6147); this makes sure
      * we get the same sequence of numbers every time this code is run. This is very useful for debugging!
      */
-    static Random rng = new Random(6147);
+    static Random rng = new Random(0);
 
     /** Array containing all the possible movement directions. */
     static final Direction[] directions = {
-        Direction.NORTH,
-        Direction.NORTHEAST,
-        Direction.EAST,
-        Direction.SOUTHEAST,
-        Direction.SOUTH,
-        Direction.SOUTHWEST,
-        Direction.WEST,
-        Direction.NORTHWEST,
+            Direction.NORTHWEST,
+            Direction.NORTH,
+            Direction.WEST,
+            Direction.NORTHEAST,
+            Direction.SOUTHWEST,
+            Direction.EAST,
+            Direction.SOUTH,
+            Direction.SOUTHEAST,
     };
-
+    static void shuffle() {
+        for (int i = 7; i > 0; --i) {
+            int j = rng.nextInt(i + 1);
+            Direction temp = directions[i];
+            directions[i] = directions[j];
+            directions[j] = temp;
+        }
+    }
     /**
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
      * It is like the main function for your robot. If this method returns, the robot dies!
@@ -53,20 +60,18 @@ public strictfp class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
         rng = new Random(rc.getID());
+        int job = rng.nextInt(2);
         // Hello world! Standard output is very useful for debugging.
         // Everything you say here will be directly viewable in your terminal when you run a match!
         System.out.println("I'm alive");
-
         // You can also use indicators to save debug notes in replays.
         rc.setIndicatorString("Hello world!");
-
         while (true) {
+            shuffle();
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
             // loop, we call Clock.yield(), signifying that we've done everything we want to do.
-
             turnCount += 1;  // We have now been alive for one more turn!
-
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
                 // Make sure you spawn your robot in before you attempt to take any actions!
@@ -77,38 +82,49 @@ public strictfp class RobotPlayer {
                     MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
                     if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
                 }
-                else{
-                    if (rc.canPickupFlag(rc.getLocation())){
-                        rc.pickupFlag(rc.getLocation());
-                        rc.setIndicatorString("Holding a flag!");
-                    }
-                    // If we are holding an enemy flag, singularly focus on moving towards
-                    // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
-                    // to make sure setup phase has ended.
-                    if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                        MapLocation firstLoc = spawnLocs[0];
-                        Direction dir = rc.getLocation().directionTo(firstLoc);
-                        if (rc.canMove(dir)) rc.move(dir);
-                    }
+                else {
                     // Move and attack randomly if no objective.
-                    Direction dir = directions[rng.nextInt(directions.length)];
-                    MapLocation nextLoc = rc.getLocation().add(dir);
-                    if (rc.canMove(dir)){
-                        rc.move(dir);
+                    if (job != 0) {
+                        Direction dir = directions[0];
+                        boolean moved = false;
+                        for (int i = 0; i < directions.length; i++) {
+                            dir = directions[i];
+                            MapLocation nextLoc = rc.getLocation().add(dir);
+                            if (rc.canMove(dir)) {
+                                rc.move(dir);
+                                moved = true;
+                            }
+                        }
+                        if (!moved) {
+                            for (int i = 0; i < directions.length; i++) {
+                                dir = directions[i];
+                                MapLocation nextLoc = rc.getLocation().add(dir);
+                                if (rc.canFill(nextLoc)) {
+                                    rc.fill(nextLoc);
+                                    System.out.println("Take that! I filled!");
+                                }
+                            }
+                        }
+                        MapLocation prevLoc = rc.getLocation().subtract(dir);
+                        if (rc.getRoundNum() >= 10 && rc.canDig(prevLoc)) rc.dig(prevLoc);
+                        // Rarely attempt placing traps behind the robot.
+                        // We can also move our code into different methods or classes to better organize it!
+                        updateEnemyRobots(rc);
                     }
-                    else if (rc.canAttack(nextLoc)){
-                        rc.attack(nextLoc);
+                    else {
+                        for (int i = 0; i < directions.length; i++) {
+                            Direction dir = directions[i];
+                            MapLocation nextLoc = rc.getLocation().add(dir);
+                            if (rc.canMove(dir)) {
+                                rc.move(dir);
+                            }
+                            else if (rc.canAttack(nextLoc)){
+                                rc.attack(nextLoc);
+                                System.out.println("Take that! Get Shot!");
+                            }
+                        }
                     }
-
-                    // Rarely attempt placing traps behind the robot.
-                    MapLocation prevLoc = rc.getLocation().subtract(dir);
-                    if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
-                        rc.build(TrapType.EXPLOSIVE, prevLoc);
-                    // We can also move our code into different methods or classes to better organize it!
-                    updateEnemyRobots(rc);
                 }
-
             } catch (GameActionException e) {
                 // Oh no! It looks like we did something illegal in the Battlecode world. You should
                 // handle GameActionExceptions judiciously, in case unexpected events occur in the game
@@ -133,7 +149,7 @@ public strictfp class RobotPlayer {
         // Your code should never reach here (unless it's intentional)! Self-destruction imminent...
     }
     public static void updateEnemyRobots(RobotController rc) throws GameActionException{
-        // Sensing methods can be passed in a radius of -1 to automatically 
+        // Sensing methods can be passed in a radius of -1 to automatically
         // use the largest possible value.
         RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
         if (enemyRobots.length != 0){

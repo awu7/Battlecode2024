@@ -1,13 +1,8 @@
-package examplefuncsplayer;
+package rush;
 
 import battlecode.common.*;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 /**
  * RobotPlayer is the class that describes your main robot strategy.
@@ -52,20 +47,23 @@ public strictfp class RobotPlayer {
      **/
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
-        rng = new Random(rc.getID());
+
         // Hello world! Standard output is very useful for debugging.
         // Everything you say here will be directly viewable in your terminal when you run a match!
-        System.out.println("I'm alive");
+        //System.out.println("I'm alive");
 
         // You can also use indicators to save debug notes in replays.
-        rc.setIndicatorString("Hello world!");
-
+        //rc.setIndicatorString("Hello world!");
+        rng = new Random(rc.getID());
+        MapLocation targetCell = new MapLocation(-1, -1);
+        int targetTurnsSpent = 0;
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
             // loop, we call Clock.yield(), signifying that we've done everything we want to do.
 
             turnCount += 1;  // We have now been alive for one more turn!
+            ++targetTurnsSpent;
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
@@ -77,7 +75,7 @@ public strictfp class RobotPlayer {
                     MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
                     if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
                 }
-                else{
+                else{ // Robot is spawned
                     if (rc.canPickupFlag(rc.getLocation())){
                         rc.pickupFlag(rc.getLocation());
                         rc.setIndicatorString("Holding a flag!");
@@ -92,15 +90,49 @@ public strictfp class RobotPlayer {
                         if (rc.canMove(dir)) rc.move(dir);
                     }
                     // Move and attack randomly if no objective.
-                    Direction dir = directions[rng.nextInt(directions.length)];
+                    MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
+                    MapInfo[] possibleInfos = rc.senseNearbyMapInfos();
+                    MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
+                    FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
+                    Direction newdir;
+                    if (targetCell == rc.getLocation() || targetTurnsSpent > 40) {
+                        targetCell = new MapLocation(-1, -1);
+                        targetTurnsSpent = 0;
+                    }
+                    if (targetCell.x == -1) {
+                        if (possibleFlags.length >= 1) {
+                            FlagInfo targetFlag = possibleFlags[0];
+                            if (targetFlag.getTeam() == rc.getTeam()) {
+                                System.out.println("This is wrong");
+                            }
+                            targetCell = targetFlag.getLocation();
+                        } else if (possibleCrumbs.length >= 1) {
+                            targetCell = possibleCrumbs[0];
+                        } else if (possibleSenses.length >= 1) {
+                            targetCell = possibleSenses[0];
+                        } else {
+                            targetCell = possibleInfos[rng.nextInt(possibleInfos.length)].getMapLocation();
+                        }
+                    }
+                    Direction dir = moveTowards(rc, targetCell);
                     MapLocation nextLoc = rc.getLocation().add(dir);
                     if (rc.canMove(dir)){
                         rc.move(dir);
-                    }
-                    else if (rc.canAttack(nextLoc)){
+                    } else if (rc.canAttack(nextLoc)){
                         rc.attack(nextLoc);
+                        System.out.println("Take that! Damaged an enemy that was in our way!");
+                    } else if (rc.canFill(nextLoc)) {
+                        rc.fill(nextLoc);
+                        System.out.println("Filled square");
+                    } else {
+                        for (int i = 0; i < 7; i++) {
+                            dir = dir.rotateRight();
+                            if (rc.canMove(dir)) {
+                                rc.move(dir);
+                                break;
+                            }
+                        }
                     }
-
                     // Rarely attempt placing traps behind the robot.
                     MapLocation prevLoc = rc.getLocation().subtract(dir);
                     if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
@@ -131,6 +163,37 @@ public strictfp class RobotPlayer {
         }
 
         // Your code should never reach here (unless it's intentional)! Self-destruction imminent...
+    }
+    public static Direction moveTowards(RobotController rc, MapLocation target) {
+        // Assume no obstacles exist
+        MapLocation loc = rc.getLocation();
+        Direction newdir;
+        if (target.y > loc.y) {
+            if (target.x > loc.x) {
+                newdir = Direction.NORTHEAST;
+            } else if (target.x < loc.x) {
+                newdir = Direction.NORTHWEST;
+            } else {
+                newdir = Direction.NORTH;
+            }
+        } else if (target.y < loc.y) {
+            if (target.x > loc.x) {
+                newdir = Direction.SOUTHEAST;
+            } else if (target.x < loc.x) {
+                newdir = Direction.SOUTHWEST;
+            } else {
+                newdir = Direction.SOUTH;
+            }
+        } else {
+            if (target.x > loc.x) {
+                newdir = Direction.EAST;
+            } else if (target.x < loc.x) {
+                newdir = Direction.WEST;
+            } else {
+                newdir = directions[rng.nextInt(directions.length)];
+            }
+        }
+        return newdir;
     }
     public static void updateEnemyRobots(RobotController rc) throws GameActionException{
         // Sensing methods can be passed in a radius of -1 to automatically 
