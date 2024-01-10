@@ -20,142 +20,7 @@ public strictfp class RobotPlayer {
             Direction.WEST,
             Direction.NORTHWEST,
     };
-    static int turnCount = 0;
-    public static void run(RobotController _rc) throws GameActionException {
-        rc = _rc;
-        rng = new Random(rc.getID());
-        MapLocation targetCell = new MapLocation(-1, -1);
-        int targetTurnsSpent = 0;
-        boolean exactTarget = false;
-        while (true) {
-            turnCount++;
-            if (rng.nextInt(200) == 10) System.out.println("e");
-            ++targetTurnsSpent;
-            try {
-                if (!rc.isSpawned()) {
-                    MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                    MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
-                    if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
-                } else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
-                    // wait, we need to pick up a flag dropped by a teammate
-                } else {
-                    if (rc.canPickupFlag(rc.getLocation()) && turnCount >= GameConstants.SETUP_ROUNDS){
-                        rc.pickupFlag(rc.getLocation());
-                        targetCell = new MapLocation(-1, -1); // retarget now that we have the flag
-                        targetTurnsSpent = 0;
-                    }
-                    boolean adjFlag = false;
-                    MapLocation potentialCarrier = null;
-                    FlagInfo[] nearbyFlags = rc.senseNearbyFlags(9, rc.getTeam().opponent());
-                    for (FlagInfo flag : nearbyFlags) {
-                        if (flag.isPickedUp()) {
-                            adjFlag = true;
-                            potentialCarrier = flag.getLocation();
-                        }
-                    }
-                    if (rc.hasFlag()) adjFlag = false;
-                    if(rc.senseMapInfo(rc.getLocation()).getSpawnZoneTeam() == (rc.getTeam() == Team.A ? 1 : 2)) adjFlag = false; // don't freeze in spawn zones
-                    MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
-                    MapInfo[] possibleInfos = rc.senseNearbyMapInfos();
-                    MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
-                    FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
-                    if(targetCell.equals(rc.getLocation())
-                       || (targetCell.distanceSquaredTo(rc.getLocation()) < 6 && !exactTarget)
-                       || targetTurnsSpent > 10 + rng.nextInt(5)
-                       || adjFlag) {
-                        targetCell = new MapLocation(-1, -1);
-                        targetTurnsSpent = 0;
-                    }
-                    if (targetCell.x == -1) {
-                        if ((rc.hasFlag()) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                            targetCell = closest(rc.getAllySpawnLocations());
-                            exactTarget = true;
-                        } else if (possibleFlags.length >= 1) {
-                            MapLocation[] flagLocs = new MapLocation[possibleFlags.length];
-                            for(int i = 0; i < possibleFlags.length; i++) {
-                                flagLocs[i] = possibleFlags[i].getLocation();
-                            }
-                            targetCell = closest(flagLocs);
-                            exactTarget = true;
-                        } else if (possibleCrumbs.length >= 1) {
-                            targetCell = closest(possibleCrumbs);
-                            exactTarget = true;
-                        } else if (possibleSenses.length >= 1) {
-                            targetCell = closest(possibleSenses);
-                            exactTarget = false;
-                        } else {
-                            targetCell = possibleInfos[rng.nextInt(possibleInfos.length)].getMapLocation();
-                            exactTarget = false;
-                        }
-                    }
-                    rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
-                    RobotInfo[] possibleEnemies = rc.senseNearbyRobots(4, rc.getTeam().opponent());
-                    // Attacking section
-                    // Should change to prioritise enemy flag carriers
-                    FlagInfo[] nearbyAllyFlags = rc.senseNearbyFlags(-1, rc.getTeam());
-                    if (possibleEnemies.length >= 1) { // Check if there are enemies in range
-                        // Get all nearby ally flags within attacking range and check if they are being carried
-                        boolean didAttack = false;
-                        for (FlagInfo flag : nearbyAllyFlags) {
-                            if (flag.isPickedUp() && rc.canAttack(flag.getLocation())) {
-                                rc.attack(flag.getLocation());
-                                didAttack = true;
-                                break;
-                            }
-                        }
-                        if (!didAttack && rc.canAttack(possibleEnemies[0].getLocation())) {
-                            rc.attack(possibleEnemies[0].getLocation());
-                        }
-                    }
-                    if (!adjFlag) {
-                        moveBetter(targetCell);
-                    }
-                    // Drop traps
-                    TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
-                    RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                    if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
-                        rc.build(randTrap, rc.getLocation());
-                    }
-                    // Also prioritise flag carriers when healing
-                    RobotInfo[] nearbyAllyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
-                    boolean didHeal = false;
-                    for (FlagInfo flag : nearbyFlags) {
-                        if (flag.isPickedUp() && rc.canHeal(flag.getLocation())) {
-                            rc.heal(flag.getLocation());
-                            didHeal = true;
-                            break;
-                        }
-                    }
-                    if (!didHeal) {
-                        for (RobotInfo ally : nearbyAllyRobots) {
-                            if (rc.canHeal(ally.getLocation())) {
-                                rc.heal(ally.getLocation());
-                                break;
-                            }
-                        }
-                    }
-                    // Attempt to buy global upgrades
-                    if (rc.getRoundNum() >= 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
-                        rc.buyGlobal(GlobalUpgrade.ACTION);
-                    }
-                    if (rc.getRoundNum() >= 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
-                        rc.buyGlobal(GlobalUpgrade.CAPTURING);
-                    }
-                }
-            } catch (GameActionException e) {
-                System.out.println("GameActionException");
-                e.printStackTrace();
-            } catch (Exception e) {
-                System.out.println("Exception");
-                e.printStackTrace();
-            } finally {
-                if (rc.onTheMap(targetCell) && rc.isSpawned()) {
-                    rc.setIndicatorLine(rc.getLocation(), targetCell, 0, 255, 0);
-                }
-                Clock.yield();
-            }
-        }
-    }
+    static MapLocation centre;
     static int max(int a, int b) {
         if (a > b) {
             return a;
@@ -215,6 +80,153 @@ public strictfp class RobotPlayer {
         if(rc.canMove(stack[stackSize - 1])) rc.move(stack[stackSize - 1]);
         if(rc.hasFlag() && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) {
             rc.dropFlag(nextLoc);
+        }
+    }
+    static MapLocation swarmTarget;
+    static MapLocation findTarget() throws GameActionException {
+        // Targeting algorithm:
+        // If we have the flag, go home
+        // Go for flags
+        // Protect flag bearers
+        // If swarm is active, go to swarm target
+        // If we see many allies, activate swarm
+        // Go for crumbs
+        // Go to the centre
+        if(rc.hasFlag()) return closest(rc.getAllySpawnLocations());
+        FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
+        MapLocation[] flagLocs = new MapLocation[possibleFlags.length];
+        for(int i = 0; i < possibleFlags.length; i++) {
+            flagLocs[i] = possibleFlags[i].getLocation();
+        }
+        if(possibleFlags.length >= 1) return closest(flagLocs);
+        RobotInfo[] nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
+        for(RobotInfo ally : nearbyAllies) {
+            if(ally.hasFlag()) return ally.getLocation();
+        }
+        int swarmLeader = rc.readSharedArray(0);
+        if(swarmLeader != 0 && !rc.onTheMap(swarmTarget)) {
+            // System.out.println("Here");
+            swarmTarget = new MapLocation(rc.readSharedArray(1), rc.readSharedArray(2));
+        }
+        if(swarmLeader == rc.getID()) {
+            rc.writeSharedArray(0, 0);
+        }
+        if(nearbyAllies.length < 4) swarmTarget = new MapLocation(-1, -1);
+        if(rc.onTheMap(swarmTarget)) return swarmTarget;
+        if(nearbyAllies.length >= 40) {
+            System.out.println("Swarm activated");
+            MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
+            swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
+            rc.writeSharedArray(0, rc.getID());
+            rc.writeSharedArray(1, swarmTarget.x);
+            rc.writeSharedArray(2, swarmTarget.y);
+            return swarmTarget;
+        }
+        MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
+        if(possibleCrumbs.length >= 1) return closest(possibleCrumbs);
+        return centre;
+    }
+    static void attack() throws GameActionException {
+        RobotInfo[] possibleEnemies = rc.senseNearbyRobots(4, rc.getTeam().opponent());
+        // prioritise flag carriers, tiebreak by lowest hp
+        if (possibleEnemies.length >= 1) { // Check if there are enemies in range
+            RobotInfo attackTarget = possibleEnemies[0];
+            for(RobotInfo enemy : possibleEnemies) {
+                if(rc.canAttack(enemy.getLocation())
+                   && (enemy.hasFlag() && !attackTarget.hasFlag()
+                       || (enemy.hasFlag() == attackTarget.hasFlag() && enemy.health < attackTarget.health))) {
+                    attackTarget = enemy;
+                }
+            }
+            if(rc.canAttack(attackTarget.getLocation())) {
+                rc.attack(attackTarget.getLocation());
+            }
+        }
+    }
+    static void heal() throws GameActionException {
+        // Also prioritise flag carriers when healing
+        RobotInfo[] nearbyAllyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
+        RobotInfo healTarget = rc.senseRobot(rc.getID());
+        for (RobotInfo ally : nearbyAllyRobots) {
+            if(rc.canHeal(ally.getLocation())
+               && (ally.hasFlag() && !healTarget.hasFlag()
+                   || (ally.hasFlag() == healTarget.hasFlag() && ally.health < healTarget.health))) {
+                healTarget = ally;
+            }
+        }
+        if(rc.canHeal(healTarget.getLocation())) {
+            rc.heal(healTarget.getLocation());
+        }
+    }
+    static int specialisation; // 0 healer, 1 attacker
+    public static void run(RobotController _rc) throws GameActionException {
+        rc = _rc;
+        rng = new Random(rc.getID());
+        specialisation = rng.nextInt(2);
+        MapLocation targetCell = new MapLocation(-1, -1);
+        centre = new MapLocation(rc.getMapWidth() / 2, rc.getMapHeight() / 2);
+        int lastSeenSwarm = 0;
+        while (true) {
+            try {
+                if (!rc.isSpawned()) {
+                    MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+                    Arrays.sort(spawnLocs, (MapLocation a, MapLocation b) -> {
+                        return centre.distanceSquaredTo(a) - centre.distanceSquaredTo(b);
+                    });
+                    for(MapLocation loc : spawnLocs) {
+                        if(rc.canSpawn(loc)) {
+                            rc.spawn(loc);
+                            swarmTarget = new MapLocation(-1, -1);
+                            break;
+                        }
+                    }
+                } else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
+                    // wait, we need to pick up a flag dropped by a teammate
+                } else {
+                    if (rc.canPickupFlag(rc.getLocation()) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
+                        rc.pickupFlag(rc.getLocation());
+                    }
+                    targetCell = findTarget();
+                    rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
+                    moveBetter(targetCell);
+                    // this is kinda broken, need to fix later
+                    attack();
+                    heal();
+                    // if(specialisation == 0) {
+                    //     heal();
+                    //     attack();
+                    // } else {
+                    //     attack();
+                    //     heal();
+                    // }
+                    // Drop traps
+                    if(rc.getCrumbs() >= 150) {
+                        TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
+                        RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+                        if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
+                            rc.build(randTrap, rc.getLocation());
+                        }
+                    }
+                    // Attempt to buy global upgrades
+                    if (rc.getRoundNum() >= 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
+                        rc.buyGlobal(GlobalUpgrade.ACTION);
+                    }
+                    if (rc.getRoundNum() >= 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                        rc.buyGlobal(GlobalUpgrade.HEALING);
+                    }
+                }
+            } catch (GameActionException e) {
+                System.out.println("GameActionException");
+                e.printStackTrace();
+            } catch (Exception e) {
+                System.out.println("Exception");
+                e.printStackTrace();
+            } finally {
+                if (rc.onTheMap(targetCell) && rc.isSpawned()) {
+                    rc.setIndicatorLine(rc.getLocation(), targetCell, 0, 255, 0);
+                }
+                Clock.yield();
+            }
         }
     }
 }
