@@ -36,8 +36,7 @@ public strictfp class RobotPlayer {
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                     MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
                     if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
-                }
-                else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
+                } else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
                     if (rc.canPickupFlag(rc.getLocation()) && turnCount >= GameConstants.SETUP_ROUNDS){
@@ -55,36 +54,34 @@ public strictfp class RobotPlayer {
                         }
                     }
                     if (rc.hasFlag()) adjFlag = false;
-                    if(rc.senseMapInfo(rc.getLocation()).getSpawnZoneTeam() == (rc.getTeam() == Team.A ? 1 : 2)) adjFlag = false;
+                    if(rc.senseMapInfo(rc.getLocation()).getSpawnZoneTeam() == (rc.getTeam() == Team.A ? 1 : 2)) adjFlag = false; // don't freeze in spawn zones
                     MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
                     MapInfo[] possibleInfos = rc.senseNearbyMapInfos();
                     MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
                     FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
-                    if (targetCell.distanceSquaredTo(rc.getLocation()) < 1 || (targetCell.distanceSquaredTo(rc.getLocation()) < 6 && !exactTarget) || targetTurnsSpent > 10+rng.nextInt(5) || adjFlag) {
+                    if(targetCell.equals(rc.getLocation())
+                       || (targetCell.distanceSquaredTo(rc.getLocation()) < 6 && !exactTarget)
+                       || targetTurnsSpent > 10 + rng.nextInt(5)
+                       || adjFlag) {
                         targetCell = new MapLocation(-1, -1);
                         targetTurnsSpent = 0;
                     }
                     if (targetCell.x == -1) {
                         if ((rc.hasFlag()) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                            MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                            int mn = 1000000000;
-                            for (int i = 0; i < spawnLocs.length; i++) {
-                                int dist = spawnLocs[i].distanceSquaredTo(rc.getLocation());
-                                if (dist < mn && dist > 0) { // Dist > 0 is necessary to avoid bread goal glitch
-                                    mn = dist;
-                                    targetCell = spawnLocs[i];
-                                }
-                            }
+                            targetCell = closest(rc.getAllySpawnLocations());
                             exactTarget = true;
                         } else if (possibleFlags.length >= 1) {
-                            FlagInfo targetFlag = possibleFlags[0];
-                            targetCell = targetFlag.getLocation();
+                            MapLocation[] flagLocs = new MapLocation[possibleFlags.length];
+                            for(int i = 0; i < possibleFlags.length; i++) {
+                                flagLocs[i] = possibleFlags[i].getLocation();
+                            }
+                            targetCell = closest(flagLocs);
                             exactTarget = true;
                         } else if (possibleCrumbs.length >= 1) {
-                            targetCell = possibleCrumbs[0];
+                            targetCell = closest(possibleCrumbs);
                             exactTarget = true;
                         } else if (possibleSenses.length >= 1) {
-                            targetCell = possibleSenses[0];
+                            targetCell = closest(possibleSenses);
                             exactTarget = false;
                         } else {
                             targetCell = possibleInfos[rng.nextInt(possibleInfos.length)].getMapLocation();
@@ -138,13 +135,10 @@ public strictfp class RobotPlayer {
                         }
                     }
                     // Attempt to buy global upgrades
-                    // For rush bot, first buy action, then capturing
-                    // (Healing, although increasing individual lifetimes,
-                    // decreases the xp gain per health point (i may be wrong pls correct me))
                     if (rc.getRoundNum() >= 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
                     }
-                    if (rc.getRoundNum() >= 1500 && rc.canBuyGlobal(GlobalUpgrade.CAPTURING)) {
+                    if (rc.getRoundNum() >= 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
                         rc.buyGlobal(GlobalUpgrade.CAPTURING);
                     }
                 }
@@ -168,6 +162,18 @@ public strictfp class RobotPlayer {
         }
         return b;
     }
+    static MapLocation closest(MapLocation[] locs) {
+        int mn = 1000000000;
+        MapLocation res = locs[0];
+        for (int i = 0; i < locs.length; i++) {
+            int dist = locs[i].distanceSquaredTo(rc.getLocation());
+            if (dist < mn) {
+                mn = dist;
+                res = locs[i];
+            }
+        }
+        return res;
+    }
     static Direction[] stack = new Direction[10];
     static int stackSize = 0;
     static int turnDir = 0;
@@ -179,6 +185,7 @@ public strictfp class RobotPlayer {
         boolean moveCooldownDone = rc.getMovementCooldownTurns() == 0;
         MapLocation nextLoc;
         RobotInfo nextLocRobot;
+        boolean triedOtherDir = false;
         while(stackSize < 8) {
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
             if(rc.onTheMap(nextLoc)) {
@@ -189,6 +196,12 @@ public strictfp class RobotPlayer {
                 }
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
                 if(rc.hasFlag() && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
+            } else {
+                // reset if hugging wall, try other turn dir
+                stackSize = 1;
+                if(triedOtherDir) break;
+                turnDir = 1 - turnDir;
+                triedOtherDir = true;
             }
             stack[stackSize] = turnDir == 0 ? stack[stackSize - 1].rotateLeft() : stack[stackSize - 1].rotateRight();
             stackSize++;
