@@ -98,12 +98,18 @@ public strictfp class RobotPlayer {
         }
     }
 
+    static void broadcastSwarmTarget(MapLocation loc) throws GameActionException {
+        rc.writeSharedArray(0, rc.getID());
+        rc.writeSharedArray(1, loc.x);
+        rc.writeSharedArray(2, loc.y);
+    }
+
     static MapLocation swarmTarget;
     static int swarmStarted = 0;
     static MapLocation findTarget() throws GameActionException {
         // Targeting algorithm:
         // If we have the flag, go home
-        // Chase opponent flag bearers
+        // Chase opponent flag bearers (and call the swarm for help)
         // Go for flags
         // Protect flag bearers
         // If in combat, kite enemies
@@ -111,11 +117,18 @@ public strictfp class RobotPlayer {
         // If we see many allies, activate swarm
         // Go for crumbs
         // Go to the centre
+        int swarmLeader = rc.readSharedArray(0);
+        if(swarmLeader == rc.getID()) {
+            rc.writeSharedArray(0, 0);
+        }
         if(rc.hasFlag() || rc.canPickupFlag(rc.getLocation())) return closest(rc.getAllySpawnLocations());
         FlagInfo[] friendlyFlags = rc.senseNearbyFlags(-1, rc.getTeam());
         if(friendlyFlags.length > 0 && rc.senseNearbyRobots(-1, rc.getTeam().opponent()).length > 0) {
             for(FlagInfo f : friendlyFlags) {
-                if(rc.senseNearbyRobots(f.getLocation(), 0, rc.getTeam().opponent()).length > 0) return f.getLocation();
+                if(rc.senseNearbyRobots(f.getLocation(), 0, rc.getTeam().opponent()).length > 0) {
+                    broadcastSwarmTarget(f.getLocation());
+                    return f.getLocation();
+                }
             }
             return friendlyFlags[0].getLocation();
         }
@@ -129,24 +142,20 @@ public strictfp class RobotPlayer {
         for(RobotInfo ally : nearbyAllies) {
             if(ally.hasFlag()) return ally.getLocation();
         }
-        int swarmLeader = rc.readSharedArray(0);
         if(swarmLeader != 0 && !rc.onTheMap(swarmTarget)) {
             swarmTarget = new MapLocation(rc.readSharedArray(1), rc.readSharedArray(2));
             swarmStarted = rc.getRoundNum();
-        }
-        if(swarmLeader == rc.getID()) {
-            rc.writeSharedArray(0, 0);
         }
         if(nearbyAllies.length < 4 || swarmStarted < rc.getRoundNum() - rc.getMapHeight() - rc.getMapWidth()) swarmTarget = new MapLocation(-1, -1);
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
         if(nearbyAllies.length >= 34) { // Changed from 40 (4/5) to 34 (2/3) Experimental
             System.out.println("Swarm activated");
             MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
-            swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
-            rc.writeSharedArray(0, rc.getID());
-            rc.writeSharedArray(1, swarmTarget.x);
-            rc.writeSharedArray(2, swarmTarget.y);
-            return swarmTarget;
+            if(possibleSenses.length > 0) {
+                swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
+                broadcastSwarmTarget(swarmTarget);
+                return swarmTarget;
+            }
         }
         MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
         if(possibleCrumbs.length >= 1) return closest(possibleCrumbs);
