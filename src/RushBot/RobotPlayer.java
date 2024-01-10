@@ -21,6 +21,9 @@ public strictfp class RobotPlayer {
             Direction.NORTHWEST,
     };
     static MapLocation centre;
+    static int movesLeft = 0;
+    static MapLocation target;
+
     static int max(int a, int b) {
         if (a > b) {
             return a;
@@ -202,13 +205,33 @@ public strictfp class RobotPlayer {
                     Arrays.sort(spawnLocs, (MapLocation a, MapLocation b) -> {
                         return centre.distanceSquaredTo(a) - centre.distanceSquaredTo(b);
                     });
-                    for(MapLocation loc : spawnLocs) {
-                        if(rc.canSpawn(loc)) {
+                    for (MapLocation loc : spawnLocs) {
+                        if (rc.canSpawn(loc)) {
                             rc.spawn(loc);
                             swarmTarget = new MapLocation(-1, -1);
                             break;
                         }
                     }
+                } else if (rc.getRoundNum() <= 150) {
+                    MapLocation nextLoc;
+                    MapLocation[] crumbs = rc.senseNearbyCrumbs(-1);
+                    if(crumbs.length > 0) {
+                        // sort crumbs by distance
+                        Arrays.sort(crumbs, (a, b) -> {
+                            return rc.getLocation().distanceSquaredTo(a) - rc.getLocation().distanceSquaredTo(b);
+                        });
+                        nextLoc = crumbs[0];
+                    } else {
+                        if(movesLeft > 0 && !rc.getLocation().equals(target)) {
+                            movesLeft--;
+                        } else {
+                            target = new MapLocation(Math.max(0, Math.min(rc.getMapWidth(), rc.getLocation().x + rng.nextInt(21) - 10)),
+                                    Math.max(0, Math.min(rc.getMapHeight(), rc.getLocation().y + rng.nextInt(21) - 10)));
+                            movesLeft = 7;
+                        }
+                        nextLoc = target;
+                    }
+                    moveBetter(nextLoc);
                 } else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
@@ -220,6 +243,7 @@ public strictfp class RobotPlayer {
                     // this is kinda broken, need to fix later
                     attackOrHeal();
 
+                    boolean retreat = (rc.getRoundNum() + 50) % 200 <= 5;
                     RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
                     if (enemies.length > 0) {
                         int beAttacked = 0;
@@ -252,13 +276,26 @@ public strictfp class RobotPlayer {
                         }
                         if (n > 0) {
                             MapLocation finalTargetCell = targetCell;
-                            Arrays.sort(choices, 0, n, (a, b) -> {
-                                return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
-                            });
+                            if (retreat) {
+                                Arrays.sort(choices, 0, n, (a, b) -> {
+                                    return rc.getLocation().add(b).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(a).distanceSquaredTo(finalTargetCell);
+                                });
+                            } else {
+                                Arrays.sort(choices, 0, n, (a, b) -> {
+                                    return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
+                                });
+                            }
                             rc.move(choices[0]);
                         }
                     } else {
-                        moveBetter(targetCell);
+                        if (retreat) {
+                            Direction dir = rc.getLocation().directionTo(targetCell).opposite();
+                            if (rc.canMove(dir)) {
+                                rc.move(dir);
+                            }
+                        } else {
+                            moveBetter(targetCell);
+                        }
                     }
 
                     attackOrHeal();
