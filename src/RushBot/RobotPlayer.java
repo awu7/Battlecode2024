@@ -63,7 +63,7 @@ public strictfp class RobotPlayer {
                     if(rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !rc.hasFlag())) break;
                 }
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-                if(rc.hasFlag() && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
+                if(rc.hasFlag() && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
             } else {
                 // reset if hugging wall, try other turn dir
                 stackSize = 1;
@@ -248,7 +248,7 @@ public strictfp class RobotPlayer {
                     attackOrHeal();
 
                     RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                    if (enemies.length > 0) {
+                    if (enemies.length > 0 && !rc.hasFlag()) {
                         int minTargeted = 0;
                         Direction[] choices = new Direction[8];
                         MapLocation loc = rc.getLocation();
