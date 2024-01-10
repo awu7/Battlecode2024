@@ -225,11 +225,14 @@ public strictfp class RobotPlayer {
                         if(movesLeft > 0 && !rc.getLocation().equals(target)) {
                             movesLeft--;
                         } else {
-                            target = new MapLocation(Math.max(0, Math.min(rc.getMapWidth(), rc.getLocation().x + rng.nextInt(21) - 10)),
-                                    Math.max(0, Math.min(rc.getMapHeight(), rc.getLocation().y + rng.nextInt(21) - 10)));
+                            target = new MapLocation(Math.max(0, Math.min(rc.getMapWidth() - 1, rc.getLocation().x + rng.nextInt(21) - 10)),
+                                    Math.max(0, Math.min(rc.getMapHeight() - 1, rc.getLocation().y + rng.nextInt(21) - 10)));
                             movesLeft = 7;
                         }
                         nextLoc = target;
+                    }
+                    if (!rc.onTheMap(nextLoc)) {
+                        System.out.println(nextLoc.x + ", " + nextLoc.y);
                     }
                     moveBetter(nextLoc);
                 } else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
@@ -243,7 +246,10 @@ public strictfp class RobotPlayer {
                     // this is kinda broken, need to fix later
                     attackOrHeal();
 
-                    boolean retreat = (rc.getRoundNum() + 50) % 200 <= 5;
+                    int retreat = (rc.getRoundNum() - 20) % 200;
+                    if (rc.onTheMap(swarmTarget)) {
+                        retreat = 1000;
+                    }
                     RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
                     if (enemies.length > 0) {
                         int beAttacked = 0;
@@ -276,7 +282,7 @@ public strictfp class RobotPlayer {
                         }
                         if (n > 0) {
                             MapLocation finalTargetCell = targetCell;
-                            if (retreat) {
+                            if (retreat <= 10) {
                                 Arrays.sort(choices, 0, n, (a, b) -> {
                                     return rc.getLocation().add(b).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(a).distanceSquaredTo(finalTargetCell);
                                 });
@@ -288,7 +294,7 @@ public strictfp class RobotPlayer {
                             rc.move(choices[0]);
                         }
                     } else {
-                        if (retreat) {
+                        if (retreat <= 5) {
                             Direction dir = rc.getLocation().directionTo(targetCell).opposite();
                             if (rc.canMove(dir)) {
                                 rc.move(dir);
@@ -308,7 +314,7 @@ public strictfp class RobotPlayer {
                     //     heal();
                     // }
                     // Drop traps
-                    if(rc.getCrumbs() >= 150) {
+                    if (rc.getCrumbs() >= 150 && rc.getRoundNum() >= 200) {
                         TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
                         RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
                         if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
