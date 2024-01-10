@@ -54,16 +54,17 @@ public strictfp class RobotPlayer {
         MapLocation nextLoc;
         RobotInfo nextLocRobot;
         boolean triedOtherDir = false;
+        boolean hasFlag = rc.hasFlag() || rc.canPickupFlag(rc.getLocation());
         while(stackSize < 8) {
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
             if(rc.onTheMap(nextLoc)) {
                 if(!moveCooldownDone) {
-                    if(!rc.senseMapInfo(nextLoc).isWall() && (!rc.senseMapInfo(nextLoc).isWater() || !rc.hasFlag())) break;
+                    if(!rc.senseMapInfo(nextLoc).isWall() && (!rc.senseMapInfo(nextLoc).isWater() || !hasFlag)) break;
                 } else {
-                    if(rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !rc.hasFlag())) break;
+                    if(rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !hasFlag)) break;
                 }
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-                if(rc.hasFlag() && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
+                if(hasFlag && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
             } else {
                 // reset if hugging wall, try other turn dir
                 stackSize = 1;
@@ -79,9 +80,18 @@ public strictfp class RobotPlayer {
         }
         nextLoc = rc.getLocation().add(stack[stackSize - 1]);
         nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-        if(rc.canFill(nextLoc)) rc.fill(nextLoc);
-        if(rc.canMove(stack[stackSize - 1])) rc.move(stack[stackSize - 1]);
-        if(rc.hasFlag() && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) {
+        if(rc.canFill(nextLoc) && !hasFlag) rc.fill(nextLoc);
+        if(rc.canMove(stack[stackSize - 1])) {
+            MapLocation old = rc.getLocation();
+            if (rc.hasFlag() && rc.canDropFlag(rc.getLocation().add(stack[stackSize - 1]))) {
+                rc.dropFlag(rc.getLocation().add(stack[stackSize - 1]));
+            }
+            rc.move(stack[stackSize - 1]);
+            if (rc.canPickupFlag(old)) {
+                rc.pickupFlag(old);
+            }
+        }
+        if(hasFlag && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) {
             rc.dropFlag(nextLoc);
         }
     }
@@ -96,7 +106,7 @@ public strictfp class RobotPlayer {
         // If we see many allies, activate swarm
         // Go for crumbs
         // Go to the centre
-        if(rc.hasFlag()) return closest(rc.getAllySpawnLocations());
+        if(rc.hasFlag() || rc.canPickupFlag(rc.getLocation())) return closest(rc.getAllySpawnLocations());
         FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
         MapLocation[] flagLocs = new MapLocation[possibleFlags.length];
         for(int i = 0; i < possibleFlags.length; i++) {
@@ -236,14 +246,19 @@ public strictfp class RobotPlayer {
                         System.out.println(nextLoc.x + ", " + nextLoc.y);
                     }
                     moveBetter(nextLoc);
-                } else if(!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
+                } else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
-                    if (rc.canPickupFlag(rc.getLocation()) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                        rc.pickupFlag(rc.getLocation());
-                    }
                     targetCell = findTarget();
-                    rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
+                    if ((rc.hasFlag() || rc.canPickupFlag(rc.getLocation())) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
+                        if (rc.getLocation().equals(targetCell)) {
+                            if (rc.canPickupFlag(rc.getLocation())) {
+                                rc.pickupFlag(rc.getLocation());
+                            }
+                        }
+                        moveBetter(targetCell);
+                    }
+//                    rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
                     // this is kinda broken, need to fix later
                     attackOrHeal();
 
