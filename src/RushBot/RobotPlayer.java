@@ -103,6 +103,7 @@ public strictfp class RobotPlayer {
     static MapLocation findTarget() throws GameActionException {
         // Targeting algorithm:
         // If we have the flag, go home
+        // Chase opponent flag bearers
         // Go for flags
         // Protect flag bearers
         // If in combat, kite enemies
@@ -111,6 +112,13 @@ public strictfp class RobotPlayer {
         // Go for crumbs
         // Go to the centre
         if(rc.hasFlag() || rc.canPickupFlag(rc.getLocation())) return closest(rc.getAllySpawnLocations());
+        FlagInfo[] friendlyFlags = rc.senseNearbyFlags(-1, rc.getTeam());
+        if(friendlyFlags.length > 0 && rc.senseNearbyRobots(-1, rc.getTeam().opponent()).length > 0) {
+            for(FlagInfo f : friendlyFlags) {
+                if(rc.senseNearbyRobots(f.getLocation(), 0, rc.getTeam().opponent()).length > 0) return f.getLocation();
+            }
+            return friendlyFlags[0].getLocation();
+        }
         FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
         MapLocation[] flagLocs = new MapLocation[possibleFlags.length];
         for(int i = 0; i < possibleFlags.length; i++) {
@@ -235,9 +243,15 @@ public strictfp class RobotPlayer {
             try {
                 if (!rc.isSpawned()) {
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                    Arrays.sort(spawnLocs, (MapLocation a, MapLocation b) -> {
-                        return centre.distanceSquaredTo(a) - centre.distanceSquaredTo(b);
-                    });
+                    // Arrays.sort(spawnLocs, (MapLocation a, MapLocation b) -> {
+                    //     return centre.distanceSquaredTo(a) - centre.distanceSquaredTo(b);
+                    // });
+                    for(int i = spawnLocs.length - 1; i > 0; i--) {
+                        int j = rng.nextInt(i);
+                        MapLocation tmp = spawnLocs[i];
+                        spawnLocs[i] = spawnLocs[j];
+                        spawnLocs[j] = tmp;
+                    }
                     for (MapLocation loc : spawnLocs) {
                         if (rc.canSpawn(loc)) {
                             rc.spawn(loc);
