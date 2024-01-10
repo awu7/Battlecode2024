@@ -1,4 +1,4 @@
-package RushBot;
+package OldRushBot;
 
 import battlecode.common.*;
 import battlecode.world.Flag;
@@ -133,8 +133,8 @@ public strictfp class RobotPlayer {
             RobotInfo attackTarget = possibleEnemies[0];
             for(RobotInfo enemy : possibleEnemies) {
                 if(rc.canAttack(enemy.getLocation())
-                   && (enemy.hasFlag() && !attackTarget.hasFlag()
-                       || (enemy.hasFlag() == attackTarget.hasFlag() && enemy.health < attackTarget.health))) {
+                        && (enemy.hasFlag() && !attackTarget.hasFlag()
+                        || (enemy.hasFlag() == attackTarget.hasFlag() && enemy.health < attackTarget.health))) {
                     attackTarget = enemy;
                 }
             }
@@ -149,8 +149,8 @@ public strictfp class RobotPlayer {
         RobotInfo healTarget = rc.senseRobot(rc.getID());
         for (RobotInfo ally : nearbyAllyRobots) {
             if(rc.canHeal(ally.getLocation())
-               && (ally.hasFlag() && !healTarget.hasFlag()
-                   || (ally.hasFlag() == healTarget.hasFlag() && ally.health < healTarget.health))) {
+                    && (ally.hasFlag() && !healTarget.hasFlag()
+                    || (ally.hasFlag() == healTarget.hasFlag() && ally.health < healTarget.health))) {
                 healTarget = ally;
             }
         }
@@ -175,15 +175,6 @@ public strictfp class RobotPlayer {
                     break;
                 }
             }
-        }
-    }
-
-    static void shuffle() {
-        for (int i = 7; i > 0; --i) {
-            int j = rng.nextInt(i + 1);
-            Direction temp = directions[i];
-            directions[i] = directions[j];
-            directions[j] = temp;
         }
     }
 
@@ -217,52 +208,9 @@ public strictfp class RobotPlayer {
                     }
                     targetCell = findTarget();
                     rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
+                    moveBetter(targetCell);
                     // this is kinda broken, need to fix later
                     attackOrHeal();
-
-                    RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                    if (enemies.length > 0) {
-                        int beAttacked = 0;
-                        Direction[] choices = new Direction[8];
-                        MapLocation loc = rc.getLocation();
-                        for (RobotInfo enemy : enemies) {
-                            if (enemy.getLocation().isWithinDistanceSquared(loc, 4)) {
-                                beAttacked++;
-                            }
-                        }
-                        int n = 0;
-                        shuffle();
-                        for (Direction dir : directions) {
-                            if (rc.canMove(dir)) {
-                                loc = rc.getLocation();
-                                int count = 0;
-                                for (RobotInfo enemy : enemies) {
-                                    if (enemy.getLocation().isWithinDistanceSquared(loc, 4)) {
-                                        count++;
-                                    }
-                                }
-                                if (count < beAttacked) {
-                                    beAttacked = count;
-                                    n = 0;
-                                }
-                                if (count == beAttacked) {
-                                    choices[n++] = dir;
-                                }
-                            }
-                        }
-                        if (n > 0) {
-                            MapLocation finalTargetCell = targetCell;
-                            Arrays.sort(choices, 0, n, (a, b) -> {
-                                return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
-                            });
-                            rc.move(choices[0]);
-                        }
-                    } else {
-                        moveBetter(targetCell);
-                    }
-
-                    attackOrHeal();
-
                     // if(specialisation == 0) {
                     //     heal();
                     //     attack();
