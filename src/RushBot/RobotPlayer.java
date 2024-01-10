@@ -2,6 +2,7 @@ package RushBot;
 
 import battlecode.common.*;
 import battlecode.world.Flag;
+import battlecode.world.Trap;
 
 import java.awt.*;
 import java.util.*;
@@ -112,6 +113,12 @@ public strictfp class RobotPlayer {
                     if (!adjFlag) {
                         moveBetter(targetCell);
                     }
+                    // Drop traps
+                    TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
+                    RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+                    if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
+                        rc.build(randTrap, rc.getLocation());
+                    }
                     // Also prioritise flag carriers when healing
                     RobotInfo[] nearbyAllyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
                     boolean didHeal = false;
@@ -154,6 +161,12 @@ public strictfp class RobotPlayer {
                 Clock.yield();
             }
         }
+    }
+    static int max(int a, int b) {
+        if (a > b) {
+            return a;
+        }
+        return b;
     }
     static Direction[] stack = new Direction[10];
     static int stackSize = 0;
