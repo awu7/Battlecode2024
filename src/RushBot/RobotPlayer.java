@@ -247,62 +247,73 @@ public strictfp class RobotPlayer {
                     // this is kinda broken, need to fix later
                     attackOrHeal();
 
-                    int retreat = (rc.getRoundNum() - 20) % 200;
-                    if (rc.onTheMap(swarmTarget)) {
-                        retreat = 1000;
-                    }
                     RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
                     if (enemies.length > 0) {
-                        int beAttacked = 0;
+                        int minTargeted = 0;
                         Direction[] choices = new Direction[8];
                         MapLocation loc = rc.getLocation();
                         for (RobotInfo enemy : enemies) {
                             if (enemy.getLocation().isWithinDistanceSquared(loc, 4)) {
-                                beAttacked++;
+                                minTargeted++;
                             }
                         }
                         int n = 0;
                         shuffle();
                         for (Direction dir : directions) {
                             if (rc.canMove(dir)) {
-                                loc = rc.getLocation();
                                 int count = 0;
                                 for (RobotInfo enemy : enemies) {
-                                    if (enemy.getLocation().isWithinDistanceSquared(loc, 4)) {
+                                    if (enemy.getLocation().isWithinDistanceSquared(loc.add(dir), 4)) {
                                         count++;
                                     }
                                 }
-                                if (count < beAttacked) {
-                                    beAttacked = count;
+                                if (count < minTargeted) {
+                                    minTargeted = count;
                                     n = 0;
                                 }
-                                if (count == beAttacked) {
+                                if (count == minTargeted) {
                                     choices[n++] = dir;
                                 }
                             }
                         }
                         if (n > 0) {
+                            rc.setIndicatorString("Targeted by " + minTargeted);
                             MapLocation finalTargetCell = targetCell;
-                            if (retreat <= 10) {
-                                Arrays.sort(choices, 0, n, (a, b) -> {
-                                    return rc.getLocation().add(b).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(a).distanceSquaredTo(finalTargetCell);
-                                });
-                            } else {
-                                Arrays.sort(choices, 0, n, (a, b) -> {
-                                    return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
-                                });
-                            }
+                            Arrays.sort(choices, 0, n, (a, b) -> {
+                                return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
+                            });
                             rc.move(choices[0]);
+                        } else {
+                            shuffle();
+                            int minAdj = 0;
+                            for (RobotInfo friend : rc.senseNearbyRobots(-1, rc.getTeam())) {
+                                if (friend.getLocation().isWithinDistanceSquared(rc.getLocation(), 2)) {
+                                    minAdj++;
+                                }
+                            }
+                            Direction choice = Direction.NORTH;
+                            boolean overriden = false;
+                            for (Direction dir: directions) {
+                                if (rc.canMove(dir)) {
+                                    int adjCount = 0;
+                                    for (RobotInfo friend : rc.senseNearbyRobots(-1, rc.getTeam())) {
+                                        if (friend.getLocation().isWithinDistanceSquared(rc.getLocation().add(dir), 2)) {
+                                            adjCount++;
+                                        }
+                                    }
+                                    if (adjCount < minAdj) {
+                                        choice = dir;
+                                        minAdj = adjCount;
+                                        overriden = true;
+                                    }
+                                }
+                            }
+                            if (overriden) {
+                                rc.move(choice);
+                            }
                         }
                     } else {
-                        if (retreat <= 5) {
-                            Direction dir = rc.getLocation().directionTo(targetCell).opposite();
-                            if (rc.canMove(dir)) {
-                                rc.move(dir);
-                            }
-                        } else {
-                            moveBetter(targetCell);
-                        }
+                        moveBetter(targetCell);
                     }
 
                     attackOrHeal();
