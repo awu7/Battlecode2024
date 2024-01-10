@@ -158,6 +158,26 @@ public strictfp class RobotPlayer {
             rc.heal(healTarget.getLocation());
         }
     }
+
+    static void attackOrHeal() throws GameActionException {
+        RobotInfo[] nearby = rc.senseNearbyRobots();
+        Arrays.sort(nearby, (a, b) -> { return a.getHealth() - b.getHealth(); });
+        for (RobotInfo robot: nearby) {
+            MapLocation loc = robot.getLocation();
+            if (robot.getTeam() == rc.getTeam()) {
+                if (rc.canHeal(loc)) {
+                    rc.heal(loc);
+                    break;
+                }
+            } else {
+                if (rc.canAttack(loc)) {
+                    rc.attack(loc);
+                    break;
+                }
+            }
+        }
+    }
+
     static int specialisation; // 0 healer, 1 attacker
     public static void run(RobotController _rc) throws GameActionException {
         rc = _rc;
@@ -190,8 +210,7 @@ public strictfp class RobotPlayer {
                     rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
                     moveBetter(targetCell);
                     // this is kinda broken, need to fix later
-                    attack();
-                    heal();
+                    attackOrHeal();
                     // if(specialisation == 0) {
                     //     heal();
                     //     attack();
