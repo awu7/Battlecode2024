@@ -113,7 +113,7 @@ public strictfp class RobotPlayer {
         }
         if(nearbyAllies.length < 4) swarmTarget = new MapLocation(-1, -1);
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
-        if(nearbyAllies.length >= 40) {
+        if(nearbyAllies.length >= 34) { // Changed from 40 (4/5) to 34 (2/3) Experimental
             System.out.println("Swarm activated");
             MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
             swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
@@ -272,7 +272,7 @@ public strictfp class RobotPlayer {
                     // }
                     // Drop traps
                     if(rc.getCrumbs() >= 150) {
-                        TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
+                        TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
                         RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
                         if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
                             rc.build(randTrap, rc.getLocation());
