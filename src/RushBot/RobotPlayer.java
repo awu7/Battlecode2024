@@ -30,6 +30,7 @@ public strictfp class RobotPlayer {
         }
         return b;
     }
+
     static MapLocation closest(MapLocation[] locs) {
         int mn = 1000000000;
         MapLocation res = locs[0];
@@ -42,6 +43,7 @@ public strictfp class RobotPlayer {
         }
         return res;
     }
+
     static Direction[] stack = new Direction[10];
     static int stackSize = 0;
     static int turnDir = 0;
@@ -87,7 +89,7 @@ public strictfp class RobotPlayer {
                 rc.dropFlag(rc.getLocation().add(stack[stackSize - 1]));
             }
             rc.move(stack[stackSize - 1]);
-            if (rc.canPickupFlag(old)) {
+            if (rc.canPickupFlag(old) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
                 rc.pickupFlag(old);
             }
         }
@@ -95,6 +97,7 @@ public strictfp class RobotPlayer {
             rc.dropFlag(nextLoc);
         }
     }
+
     static MapLocation swarmTarget;
     static int swarmStarted = 0;
     static MapLocation findTarget() throws GameActionException {
@@ -102,6 +105,7 @@ public strictfp class RobotPlayer {
         // If we have the flag, go home
         // Go for flags
         // Protect flag bearers
+        // If in combat, kite enemies
         // If swarm is active, go to swarm target
         // If we see many allies, activate swarm
         // Go for crumbs
@@ -119,7 +123,6 @@ public strictfp class RobotPlayer {
         }
         int swarmLeader = rc.readSharedArray(0);
         if(swarmLeader != 0 && !rc.onTheMap(swarmTarget)) {
-            // System.out.println("Here");
             swarmTarget = new MapLocation(rc.readSharedArray(1), rc.readSharedArray(2));
             swarmStarted = rc.getRoundNum();
         }
@@ -193,6 +196,27 @@ public strictfp class RobotPlayer {
         }
     }
 
+    static void pickupFlag() throws GameActionException {
+        if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
+            for(FlagInfo f : rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
+                if(rc.canPickupFlag(f.getLocation()) && rc.senseNearbyRobots(f.getLocation(), 0, rc.getTeam()).length == 0) {
+                    rc.pickupFlag(f.getLocation());
+                    break;
+                }
+            }
+        }
+    }
+
+    static void buildTraps() throws GameActionException {
+        if (rc.getCrumbs() >= 150 && rc.getRoundNum() >= 200) {
+            TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
+            RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+            if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
+                rc.build(randTrap, rc.getLocation());
+            }
+        }
+    }
+
     static void shuffle() {
         for (int i = 7; i > 0; --i) {
             int j = rng.nextInt(i + 1);
@@ -202,11 +226,9 @@ public strictfp class RobotPlayer {
         }
     }
 
-    static int specialisation; // 0 healer, 1 attacker
     public static void run(RobotController _rc) throws GameActionException {
         rc = _rc;
         rng = new Random(rc.getID());
-        specialisation = rng.nextInt(2);
         MapLocation targetCell = new MapLocation(-1, -1);
         centre = new MapLocation(rc.getMapWidth() / 2, rc.getMapHeight() / 2);
         while (true) {
@@ -249,21 +271,12 @@ public strictfp class RobotPlayer {
                 } else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
+                    pickupFlag();
                     targetCell = findTarget();
-                    if ((rc.hasFlag() || rc.canPickupFlag(rc.getLocation())) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                        if (rc.getLocation().equals(targetCell)) {
-                            if (rc.canPickupFlag(rc.getLocation())) {
-                                rc.pickupFlag(rc.getLocation());
-                            }
-                        }
-                        moveBetter(targetCell);
-                    }
-//                    rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
-                    // this is kinda broken, need to fix later
+                    rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
                     attackOrHeal();
-
                     RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                    if (enemies.length > 0 && !rc.hasFlag()) {
+                    if (enemies.length > 0 && !rc.hasFlag() && rc.senseNearbyFlags(3, rc.getTeam().opponent()).length == 0) {
                         int minTargeted = 0;
                         Direction[] choices = new Direction[8];
                         MapLocation loc = rc.getLocation();
@@ -330,24 +343,9 @@ public strictfp class RobotPlayer {
                     } else {
                         moveBetter(targetCell);
                     }
-
+                    pickupFlag();
                     attackOrHeal();
-
-                    // if(specialisation == 0) {
-                    //     heal();
-                    //     attack();
-                    // } else {
-                    //     attack();
-                    //     heal();
-                    // }
-                    // Drop traps
-                    if (rc.getCrumbs() >= 150 && rc.getRoundNum() >= 200) {
-                        TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
-                        RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                        if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
-                            rc.build(randTrap, rc.getLocation());
-                        }
-                    }
+                    buildTraps();
                     // Attempt to buy global upgrades
                     if (rc.getRoundNum() >= 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
