@@ -245,11 +245,11 @@ public strictfp class RobotPlayer {
         }
         if(swarmEnd < rc.getRoundNum()) swarmTarget = new MapLocation(-1, -1);
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
-        System.out.println("Swarm retargeted");
+        // System.out.println("Swarm retargeted");
         MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
         if(possibleSenses.length > 0) {
             swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
-            broadcastSwarmTarget(swarmTarget);
+            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth()) / 2;
             return swarmTarget;
         }
         MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
@@ -341,7 +341,20 @@ public strictfp class RobotPlayer {
     }
 
     static void buildTraps() throws GameActionException {
-        if (rc.getCrumbs() >= 200 && rc.getRoundNum() >= 200) {
+        boolean ok = true;
+        for(MapInfo m : rc.senseNearbyMapInfos(-1)) {
+            if(m.isWall()) {
+                ok = false;
+                break;
+            }
+        }
+        for(MapInfo m : rc.senseNearbyMapInfos(2)) {
+            if(m.isSpawnZone()) {
+                ok = true;
+            }
+        }
+        if(!ok) return;
+        if(rc.getCrumbs() >= 200 && rc.getRoundNum() >= 200) {
             TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
             if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
@@ -630,7 +643,10 @@ public strictfp class RobotPlayer {
                     // Movement
                     {
                         RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                        if (enemies.length > 0 && !rc.hasFlag() && rc.senseNearbyFlags(3, rc.getTeam().opponent()).length == 0) {
+                        if (enemies.length * 3 > nearbyAllies.length * 2
+                            && !rc.hasFlag()
+                            && rc.senseNearbyFlags(9, rc.getTeam().opponent()).length == 0
+                            && rc.senseNearbyFlags(4, rc.getTeam()).length == 0) {
                             int minTargeted = 0;
                             Direction[] choices = new Direction[8];
                             MapLocation loc = rc.getLocation();
