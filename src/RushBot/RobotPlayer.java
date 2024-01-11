@@ -118,7 +118,7 @@ public strictfp class RobotPlayer {
     }
 
     static MapLocation swarmTarget;
-    static int swarmStarted = 0;
+    static int swarmEnd = 0;
     static MapLocation findTarget() throws GameActionException {
         // Targeting algorithm:
         // If we have the flag, go home
@@ -155,11 +155,11 @@ public strictfp class RobotPlayer {
         for(RobotInfo ally : nearbyAllies) {
             if(ally.hasFlag()) return ally.getLocation();
         }
-        if(swarmLeader != 0 && !rc.onTheMap(swarmTarget)) {
+        if(swarmLeader != 0) {
             swarmTarget = new MapLocation(rc.readSharedArray(1), rc.readSharedArray(2));
-            swarmStarted = rc.getRoundNum();
+            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth());
         }
-        if(nearbyAllies.length < 4 || swarmStarted < rc.getRoundNum() - rc.getMapHeight() - rc.getMapWidth()) swarmTarget = new MapLocation(-1, -1);
+        if(nearbyAllies.length < 4 || swarmEnd < rc.getRoundNum()) swarmTarget = new MapLocation(-1, -1);
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
         if(nearbyAllies.length >= 34) { // Changed from 40 (4/5) to 34 (2/3) Experimental
             System.out.println("Swarm activated");
