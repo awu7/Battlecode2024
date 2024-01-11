@@ -378,9 +378,7 @@ public strictfp class RobotPlayer {
                     for (RobotInfo ally : nearbyAllies) {
                         nearbyHP+=ally.health;
                     }
-                    if (nearbyAllies.length > 0) {
-                        nearbyHP /= nearbyAllies.length;
-                    }
+                    nearbyHP /= (nearbyAllies.length+1);
                     int threshold = min(nearbyAllies.length*75, 751);
                     // Movement
                     {
