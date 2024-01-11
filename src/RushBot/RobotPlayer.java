@@ -205,16 +205,6 @@ public strictfp class RobotPlayer {
     static MapLocation swarmTarget;
     static int swarmEnd = 0;
     static MapLocation findTarget() throws GameActionException {
-        // Targeting algorithm:
-        // If we have the flag, go home
-        // Chase opponent flag bearers (and call the swarm for help)
-        // Go for flags
-        // Protect flag bearers
-        // If in combat, kite enemies
-        // If swarm is active, go to swarm target
-        // If we see many allies, activate swarm
-        // Go for crumbs
-        // Go to the centre
         int swarmLeader = rc.readSharedArray(0);
         if(swarmLeader == rc.getID()) {
             rc.writeSharedArray(0, 0);
@@ -241,18 +231,16 @@ public strictfp class RobotPlayer {
         }
         if(swarmLeader != 0) {
             swarmTarget = new MapLocation(rc.readSharedArray(1), rc.readSharedArray(2));
-            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth());
+            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth()) / 2;
         }
-        if(nearbyAllies.length < 4 || swarmEnd < rc.getRoundNum()) swarmTarget = new MapLocation(-1, -1);
+        if(swarmEnd < rc.getRoundNum()) swarmTarget = new MapLocation(-1, -1);
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
-        if(nearbyAllies.length >= 34) { // Changed from 40 (4/5) to 34 (2/3) Experimental
-            System.out.println("Swarm activated");
-            MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
-            if(possibleSenses.length > 0) {
-                swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
-                broadcastSwarmTarget(swarmTarget);
-                return swarmTarget;
-            }
+        // System.out.println("Swarm retargeted");
+        MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
+        if(possibleSenses.length > 0) {
+            swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
+            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth()) / 2;
+            return swarmTarget;
         }
         MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
         if(possibleCrumbs.length >= 1) return closest(possibleCrumbs);
@@ -343,7 +331,20 @@ public strictfp class RobotPlayer {
     }
 
     static void buildTraps() throws GameActionException {
-        if (rc.getCrumbs() >= 200 && rc.getRoundNum() >= 200) {
+        boolean ok = true;
+        for(MapInfo m : rc.senseNearbyMapInfos(-1)) {
+            if(m.isWall()) {
+                ok = false;
+                break;
+            }
+        }
+        for(MapInfo m : rc.senseNearbyMapInfos(2)) {
+            if(m.isSpawnZone()) {
+                ok = true;
+            }
+        }
+        if(!ok) return;
+        if(rc.getCrumbs() >= 200 && rc.getRoundNum() >= 200) {
             TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
             if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
@@ -797,14 +798,20 @@ public strictfp class RobotPlayer {
                     // Determine whether to move or not
                     int nearbyHP = rc.getHealth();
                     for (RobotInfo ally : nearbyAllies) {
-                        nearbyHP+=ally.health;
+                        nearbyHP += ally.health;
                     }
-                    nearbyHP /= (nearbyAllies.length+1);
-                    int threshold = min(nearbyAllies.length*75, 751);
+                    int threshold = min(nearbyAllies.length*75, 751) * (nearbyAllies.length + 1);
+                    int enemyHP = 0;
+                    RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+                    for(RobotInfo enemy : enemies) {
+                        enemyHP += enemy.health;
+                    }
                     // Movement
                     {
-                        RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                        if (enemies.length > 0 && !rc.hasFlag() && rc.senseNearbyFlags(3, rc.getTeam().opponent()).length == 0) {
+                        if (enemyHP * 3 > nearbyHP * 2
+                            && !rc.hasFlag()
+                            && rc.senseNearbyFlags(9, rc.getTeam().opponent()).length == 0
+                            && rc.senseNearbyFlags(4, rc.getTeam()).length == 0) {
                             int minTargeted = 0;
                             Direction[] choices = new Direction[8];
                             MapLocation loc = rc.getLocation();
@@ -867,7 +874,7 @@ public strictfp class RobotPlayer {
                                     rc.move(choice);
                                 }
                             }
-                        } else if (nearbyHP >= threshold) {
+                        } else if (nearbyHP >= threshold || rc.senseNearbyFlags(13, rc.getTeam().opponent()).length > 0) {
                             moveBetter(targetCell);
                             rc.setIndicatorString("Nope, not kiting");
                         }
