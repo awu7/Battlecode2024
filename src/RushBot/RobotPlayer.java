@@ -55,7 +55,7 @@ public strictfp class RobotPlayer {
     static int turnDir = 0;
     static RobotInfo[] nearbyAllies;
     static void moveBetter(MapLocation pos) throws GameActionException {
-        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) stackSize = 0;
+        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(16) == 0)) stackSize = 0;
         if(stackSize == 0) stack[stackSize++] = rc.getLocation().directionTo(pos);
         if(stackSize == 1) turnDir = rng.nextInt(2);
         if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) stackSize--;
@@ -103,7 +103,6 @@ public strictfp class RobotPlayer {
         if(rc.canFill(nextLoc) && !hasFlag) {
             rc.fill(nextLoc);
         }
-        MapLocation old = rc.getLocation();
         if(rc.canMove(dir)) {
             if (rc.hasFlag() && rc.canDropFlag(rc.getLocation().add(dir))) {
                 rc.dropFlag(rc.getLocation().add(dir));
@@ -112,10 +111,35 @@ public strictfp class RobotPlayer {
         }
         if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) {
             rc.dropFlag(nextLoc);
+            writeStack();
         }
-        if (rc.canPickupFlag(old) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
-            rc.pickupFlag(old);
+    }
+    static int stackPassIndex = 3;
+    static void writeStack() throws GameActionException {
+        // 3 bits for stack size, 1 bit for turn dir, 3 bits for first dir;
+        if(stackSize == 0) {
+            rc.writeSharedArray(stackPassIndex, 0);
+            return;
         }
+        for(int i = 0; i < 8; i++) {
+            if(stack[0] == Direction.values()[i]) {
+                rc.writeSharedArray(stackPassIndex, (stackSize << 4) + (turnDir << 3) + i);
+                return;
+            }
+        }
+    }
+    static void readStack() throws GameActionException {
+        int data = rc.readSharedArray(stackPassIndex);
+        if(data == 0) {
+            return;
+        }
+        stackSize = data >> 4;
+        turnDir = (data >> 3) & 1;
+        stack[0] = Direction.values()[data & 7];
+        for(int i = 1; i < stackSize; i++) {
+            stack[i] = turnDir == 0 ? stack[i - 1].rotateLeft() : stack[i - 1].rotateRight();
+        }
+        rc.writeSharedArray(stackPassIndex, 0);
     }
 
     static void broadcastSwarmTarget(MapLocation loc) throws GameActionException {
@@ -252,11 +276,12 @@ public strictfp class RobotPlayer {
         }
     }
 
-    static void pickupFlag() throws GameActionException {
+    static void pickupFlag(boolean allowCurrentCell) throws GameActionException {
         if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
             for(FlagInfo f : rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
-                if(rc.canPickupFlag(f.getLocation()) && rc.senseNearbyRobots(f.getLocation(), 0, rc.getTeam()).length == 0) {
+                if((allowCurrentCell || !f.getLocation().equals(rc.getLocation())) && rc.canPickupFlag(f.getLocation()) && rc.senseNearbyRobots(f.getLocation(), 0, rc.getTeam()).length == 0) {
                     rc.pickupFlag(f.getLocation());
+                    readStack();
                     break;
                 }
             }
@@ -341,15 +366,12 @@ public strictfp class RobotPlayer {
                         nextLoc = target;
                     }
                     moveBetter(nextLoc);
-                } else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
-                    // wait, we need to pick up a flag dropped by a teammate
                 } else {
-                    nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
-                    pickupFlag();
+                    pickupFlag(false);
                     targetCell = findTarget();
-                    rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
-                    attackOrHeal();
+                    if(rc.senseNearbyFlags(0).length == 0) attackOrHeal();
                     trapSpawn();
+                    nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     // Determine whether to move or not
                     int nearbyHP = 0;
                     for (RobotInfo ally : nearbyAllies) {
@@ -427,7 +449,7 @@ public strictfp class RobotPlayer {
                             moveBetter(targetCell);
                         }
                     }
-                    pickupFlag();
+                    pickupFlag(true);
                     attackOrHeal();
                     buildTraps();
                     // Attempt to buy global upgrades
@@ -448,6 +470,7 @@ public strictfp class RobotPlayer {
                 if (rc.onTheMap(targetCell) && rc.isSpawned()) {
                     rc.setIndicatorLine(rc.getLocation(), targetCell, 0, 255, 0);
                 }
+                rc.setIndicatorString(String.valueOf("TurnDir: " + String.valueOf(turnDir) + " StackSize: " + String.valueOf(stackSize) + " Cooldowns: " + rc.getMovementCooldownTurns()) + " " + String.valueOf(rc.getActionCooldownTurns()));
                 Clock.yield();
             }
         }
