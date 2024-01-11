@@ -6,6 +6,9 @@ import battlecode.world.Trap;
 
 import java.awt.*;
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.IntFunction;
+import java.util.function.ToIntBiFunction;
 
 public strictfp class RobotPlayer {
     static RobotController rc;
@@ -23,6 +26,51 @@ public strictfp class RobotPlayer {
     static MapLocation centre;
     static int movesLeft = 0;
     static MapLocation target;
+    static int team = 0;
+
+    /**
+     * ID compression system.
+     * Each robot starts with an ID, theoretically in the range [10000, 14096).
+     * ids is an int array which stores the actual ID of each robot.
+     * idx is a compressed mapping of each ID to its index in ids
+     * ids is sorted by turn order.
+     */
+    static int[] ids = new int[50];
+    static int[] idx = new int[10000];
+    /**
+     * 0 = BFS bot, receives information from other bots and runs a BFS in idle turns.
+     */
+    static int selfIdx = -1;
+
+    static Direction[] stack = new Direction[10];
+    static int stackSize = 0;
+    static int turnDir = 0;
+    static RobotInfo[] nearbyAllies;
+
+    // 2d array storing the board
+    // 0 = undiscovered
+    // 1 = emtpy passable tile
+    // 2 = wall
+    // 3 = our spawn zone
+    // 4 = opponent's spawn zone
+    // 5 = dam
+    static int[][] board;
+    static boolean vertical = true, horizontal = true, rotational = true;
+    public enum Symmetry {
+        UNKNOWN("Unknown"),
+        VERTICAL("Vertical"),
+        HORIZONTAL("Horizontal"),
+        ROTATIONAL("Rotational"),
+        ALL("All");
+
+        public final String label;
+
+        Symmetry(String label) {
+            this.label = label;
+        }
+    }
+    static Symmetry symmetry = Symmetry.UNKNOWN;
+    static boolean justUpdated = false;
 
     static int max(int a, int b) {
         if (a > b) {
@@ -50,15 +98,19 @@ public strictfp class RobotPlayer {
         return res;
     }
 
-    static Direction[] stack = new Direction[10];
-    static int stackSize = 0;
-    static int turnDir = 0;
-    static RobotInfo[] nearbyAllies;
     static void moveBetter(MapLocation pos) throws GameActionException {
-        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(16) == 0)) stackSize = 0;
-        if(stackSize == 0) stack[stackSize++] = rc.getLocation().directionTo(pos);
-        if(stackSize == 1) turnDir = rng.nextInt(2);
-        if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) stackSize--;
+        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) {
+            stackSize = 0;
+        }
+        if(stackSize == 0) {
+            stack[stackSize++] = rc.getLocation().directionTo(pos);
+        }
+        if(stackSize == 1) {
+            turnDir = rng.nextInt(2);
+        }
+        if(stackSize >= 2 && rc.canMove(stack[stackSize - 2])) {
+            stackSize--;
+        }
         boolean moveCooldownDone = rc.getMovementCooldownTurns() == 0;
         MapLocation nextLoc;
         RobotInfo nextLocRobot;
@@ -80,27 +132,29 @@ public strictfp class RobotPlayer {
                 }
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
                 // otherwise, if we have the flag and the square we're trying to move to is obstructed by a friend
-                if(hasFlag && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
+                if (hasFlag && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
                     rc.setIndicatorString("Passing bread to a friend!");
                     break;
                 }
             } else {
                 // reset if hugging wall, try other turn dir
                 stackSize = 1;
-                if(triedOtherDir) break;
+                if(triedOtherDir) {
+                    break;
+                }
                 turnDir = 1 - turnDir;
                 triedOtherDir = true;
             }
             stack[stackSize] = turnDir == 0 ? stack[stackSize - 1].rotateLeft() : stack[stackSize - 1].rotateRight();
             stackSize++;
         }
-        if(stackSize >= 8) {
+        if (stackSize >= 8) {
             stackSize = 1;
         }
         Direction dir = stack[stackSize - 1];
         nextLoc = rc.getLocation().add(dir);
         nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-        if(rc.canFill(nextLoc) && !hasFlag) {
+        if (rc.canFill(nextLoc) && !hasFlag) {
             rc.fill(nextLoc);
         }
         if(rc.canMove(dir)) {
@@ -109,7 +163,7 @@ public strictfp class RobotPlayer {
             }
             rc.move(dir);
         }
-        if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) {
+        if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
             rc.dropFlag(nextLoc);
             writeStack();
         }
@@ -307,13 +361,150 @@ public strictfp class RobotPlayer {
         }
     }
 
+    static boolean isCentreSpawn(MapLocation loc) throws GameActionException {
+        for (Direction dir: directions) {
+            if (!rc.canSenseLocation(loc.add(dir))) {
+                return false;
+            }
+            if (!rc.senseMapInfo(loc.add(dir)).isSpawnZone()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     static void trapSpawn() throws GameActionException {
         if (rc.senseNearbyFlags(-1, rc.getTeam()).length > 0) {
             for (MapInfo info : rc.senseNearbyMapInfos()) {
                 if (info.isSpawnZone()) {
-                    if (rc.canBuild(TrapType.EXPLOSIVE, info.getMapLocation())) {
-                        rc.build(TrapType.EXPLOSIVE, info.getMapLocation());
+                    if (isCentreSpawn(info.getMapLocation())) {
+                        if (rc.canBuild(TrapType.STUN, info.getMapLocation())) {
+                            rc.build(TrapType.STUN, info.getMapLocation());
+                        }
+                    } else {
+                        if (rc.canBuild(TrapType.EXPLOSIVE, info.getMapLocation())) {
+                            rc.build(TrapType.EXPLOSIVE, info.getMapLocation());
+                        }
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper function used in sorting tiles based on distance.
+     * @param target the target tile to which distance is calculated
+     * @return a Comparator<MapLocation> which can be passed into the sorting function
+     */
+    static Comparator<MapLocation> closestComp(MapLocation target) {
+        return new Comparator<MapLocation>() {
+            @Override
+            public int compare(MapLocation o1, MapLocation o2) {
+                return target.distanceSquaredTo(o1) - target.distanceSquaredTo(o2);
+            }
+        };
+    }
+
+    /**
+     * Helper function used in sorting tiles based on distance to robot's current position.
+     * @return a Comparator<MapLocation> which can be passed into the sorting function
+     */
+    static Comparator<MapLocation> closestComp() {
+        return closestComp(rc.getLocation());
+    }
+
+    static void printBoard() {
+        for (int y = rc.getMapHeight() - 1; y >= 0; --y) {
+            StringBuilder row = new StringBuilder();
+            for (int x = 0; x < rc.getMapWidth(); ++x) {
+                row.append(board[x][y]);
+            }
+            System.out.println(row);
+        }
+    }
+
+    static boolean sameTile(int a, int b) {
+        if (a == 0 || b == 0) {
+            return true;
+        }
+        if (a == b) {
+            return true;
+        }
+        if (a == 3 && b == 4) {
+            return true;
+        }
+        if (a == 4 && b == 3) {
+            return true;
+        }
+        return false;
+    }
+    
+    static void updateCellSymmetry(int x, int y) {
+        if (symmetry == Symmetry.HORIZONTAL || symmetry == Symmetry.ALL) {
+            board[rc.getMapWidth() - 1 - x][y] = board[x][y];
+        }
+        if (symmetry == Symmetry.VERTICAL || symmetry == Symmetry.ALL) {
+            board[x][rc.getMapHeight() - 1 - y] = board[x][y];
+        }
+        if (symmetry == Symmetry.ROTATIONAL || symmetry == Symmetry.ALL) {
+            board[rc.getMapWidth() - 1 - x][rc.getMapHeight() - 1 - y] = board[x][y];
+        }
+    }
+
+    static void recordVision() {
+        for (MapInfo square: rc.senseNearbyMapInfos()) {
+            int x = square.getMapLocation().x;
+            int y = square.getMapLocation().y;
+            if (board[x][y] == 0) {
+                if (square.getSpawnZoneTeam() == team) {
+                    board[x][y] = 3;
+                } else if (square.getSpawnZoneTeam() == 3 - team) {
+                    board[x][y] = 4;
+                } else if (square.isWall()) {
+                    board[x][y] = 2;
+                } else if (!square.isWater() && !square.isPassable()) {
+                    // dam
+                    board[x][y] = 5;
+                } else {
+                    board[x][y] = 1;
+                }
+
+                if (symmetry == Symmetry.UNKNOWN) {
+                    int ver = board[x][rc.getMapHeight() - 1 - y];
+                    if (!sameTile(board[x][y], ver)) {
+                        vertical = false;
+                        if (!horizontal) {
+                            symmetry = Symmetry.ROTATIONAL;
+                            System.out.println(symmetry.label);
+                        } else if (!rotational) {
+                            symmetry = Symmetry.HORIZONTAL;
+                            System.out.println(symmetry.label);
+                        }
+                    }
+                    int hor = board[rc.getMapWidth() - 1 - x][y];
+                    if (!sameTile(board[x][y], hor)) {
+                        horizontal = false;
+                        if (!vertical) {
+                            symmetry = Symmetry.ROTATIONAL;
+                            System.out.println(symmetry.label);
+                        } else if (!rotational) {
+                            symmetry = Symmetry.VERTICAL;
+                            System.out.println(symmetry.label);
+                        }
+                    }
+                    int rot = board[rc.getMapWidth() - 1 - x][rc.getMapHeight() - 1 - y];
+                    if (!sameTile(board[x][y], rot)) {
+                        rotational = false;
+                        if (!horizontal) {
+                            symmetry = Symmetry.VERTICAL;
+                            System.out.println(symmetry.label);
+                        } else if (!vertical) {
+                            symmetry = Symmetry.HORIZONTAL;
+                            System.out.println(symmetry.label);
+                        }
+                    }
+                } else {
+                    updateCellSymmetry(x, y);
                 }
             }
         }
@@ -324,13 +515,63 @@ public strictfp class RobotPlayer {
         rng = new Random(rc.getID());
         MapLocation targetCell = new MapLocation(-1, -1);
         centre = new MapLocation(rc.getMapWidth() / 2, rc.getMapHeight() / 2);
+        if (rc.getTeam() == Team.A) {
+            team = 1;
+        } else {
+            team = 2;
+        }
+        board = new int[rc.getMapWidth()][rc.getMapHeight()];
         while (true) {
             try {
+                if (rc.getRoundNum() == 1) {
+                    int i = 0;
+                    while (rc.readSharedArray(i) > 0) {
+                        i++;
+                    }
+                    rc.writeSharedArray(i, rc.getID() - 9999);
+                } else if (rc.getRoundNum() == 2) {
+                    for (int i = 0; i < 50; ++i) {
+                        int id = rc.readSharedArray(i);
+                        ids[i] = id;
+                        idx[id] = i;
+                        if (id + 9999 == rc.getID()) {
+                            selfIdx = i;
+                        }
+                    }
+                    if (selfIdx == 49) {
+                        for (int i = 0; i < 50; ++i) {
+                            rc.writeSharedArray(i, 0);
+                        }
+                    }
+                }
+                if (rc.isSpawned()) {
+                    if (selfIdx <= 0) {
+                        if (rc.getRoundNum() == 201) {
+                            for (int x = 0; x < rc.getMapWidth(); ++x) {
+                                for (int y = 0; y < rc.getMapHeight(); ++y) {
+                                    if (board[x][y] == 5) {
+                                        board[x][y] = 1;
+                                    }
+                                    if (Clock.getBytecodesLeft() < 4000) {
+                                        Clock.yield();
+                                    }
+                                }
+                            }
+                            Clock.yield();
+                            continue;
+                        }
+                        // We are the scouting duck! Record all squares we see in the 2d array.
+                        recordVision();
+                        if (justUpdated) {
+                            justUpdated = false;
+                            Clock.yield();
+                            continue;
+                        }
+                    }
+                }
                 if (!rc.isSpawned()) {
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                    // Arrays.sort(spawnLocs, (MapLocation a, MapLocation b) -> {
-                    //     return centre.distanceSquaredTo(a) - centre.distanceSquaredTo(b);
-                    // });
+//                    Arrays.sort(spawnLocs, closestComp(centre));
                     for(int i = spawnLocs.length - 1; i > 0; i--) {
                         int j = rng.nextInt(i);
                         MapLocation tmp = spawnLocs[i];
@@ -342,6 +583,16 @@ public strictfp class RobotPlayer {
                             rc.spawn(loc);
                             trapSpawn();
                             swarmTarget = new MapLocation(-1, -1);
+                            if (rc.getRoundNum() == 1) {
+                                shuffle();
+                                for (Direction dir : directions) {
+                                    if (rc.canMove(dir)) {
+                                        if (!rc.senseMapInfo(rc.getLocation().add(dir)).isSpawnZone()) {
+                                            rc.move(dir);
+                                        }
+                                    }
+                                }
+                            }
                             break;
                         }
                     }
@@ -352,9 +603,7 @@ public strictfp class RobotPlayer {
                     MapLocation[] crumbs = rc.senseNearbyCrumbs(-1);
                     if(crumbs.length > 0) {
                         // sort crumbs by distance
-                        Arrays.sort(crumbs, (a, b) -> {
-                            return rc.getLocation().distanceSquaredTo(a) - rc.getLocation().distanceSquaredTo(b);
-                        });
+                        Arrays.sort(crumbs, closestComp());
                         nextLoc = crumbs[0];
                     } else {
                         if(movesLeft > 0 && !rc.getLocation().equals(target)) {
@@ -448,6 +697,7 @@ public strictfp class RobotPlayer {
                             }
                         } else if (nearbyHP >= threshold) {
                             moveBetter(targetCell);
+                            rc.setIndicatorString("Nope, not kiting");
                         }
                     }
                     pickupFlag(true);
