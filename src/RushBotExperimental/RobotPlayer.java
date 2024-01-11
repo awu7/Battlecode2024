@@ -712,7 +712,7 @@ public strictfp class RobotPlayer {
                                     rc.move(choice);
                                 }
                             }
-                        } else if (nearbyHP >= threshold) {
+                        } else if (nearbyHP >= threshold || rc.senseNearbyFlags(13, rc.getTeam().opponent()).length > 0) {
                             moveBetter(targetCell);
                             rc.setIndicatorString("Nope, not kiting");
                         }
