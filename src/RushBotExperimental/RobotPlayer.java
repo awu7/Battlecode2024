@@ -1,4 +1,4 @@
-package RushBot;
+package RushBotExperimental;
 
 import battlecode.common.*;
 import battlecode.world.Flag;
@@ -241,18 +241,16 @@ public strictfp class RobotPlayer {
         }
         if(swarmLeader != 0) {
             swarmTarget = new MapLocation(rc.readSharedArray(1), rc.readSharedArray(2));
-            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth());
+            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth()) / 2;
         }
-        if(nearbyAllies.length < 4 || swarmEnd < rc.getRoundNum()) swarmTarget = new MapLocation(-1, -1);
+        if(swarmEnd < rc.getRoundNum()) swarmTarget = new MapLocation(-1, -1);
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
-        if(nearbyAllies.length >= 34) { // Changed from 40 (4/5) to 34 (2/3) Experimental
-            System.out.println("Swarm activated");
-            MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
-            if(possibleSenses.length > 0) {
-                swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
-                broadcastSwarmTarget(swarmTarget);
-                return swarmTarget;
-            }
+        System.out.println("Swarm retargeted");
+        MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
+        if(possibleSenses.length > 0) {
+            swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
+            broadcastSwarmTarget(swarmTarget);
+            return swarmTarget;
         }
         MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
         if(possibleCrumbs.length >= 1) return closest(possibleCrumbs);
