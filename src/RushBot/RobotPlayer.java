@@ -346,6 +346,7 @@ public strictfp class RobotPlayer {
                         }
                     }
                 } else if (rc.getRoundNum() <= 150) {
+                    nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     trapSpawn();
                     MapLocation nextLoc;
                     MapLocation[] crumbs = rc.senseNearbyCrumbs(-1);
@@ -367,17 +368,19 @@ public strictfp class RobotPlayer {
                     }
                     moveBetter(nextLoc);
                 } else {
+                    nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     pickupFlag(false);
                     targetCell = findTarget();
                     if(rc.senseNearbyFlags(0).length == 0) attackOrHeal();
                     trapSpawn();
-                    nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     // Determine whether to move or not
-                    int nearbyHP = 0;
+                    int nearbyHP = rc.getHealth();
                     for (RobotInfo ally : nearbyAllies) {
                         nearbyHP+=ally.health;
                     }
-                    nearbyHP /= nearbyAllies.length;
+                    if (nearbyAllies.length > 0) {
+                        nearbyHP /= nearbyAllies.length;
+                    }
                     int threshold = min(nearbyAllies.length*75, 751);
                     // Movement
                     {
