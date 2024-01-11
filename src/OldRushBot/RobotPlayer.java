@@ -1,4 +1,4 @@
-package RushBot;
+package OldRushBot;
 
 import battlecode.common.*;
 import battlecode.world.Flag;
@@ -61,22 +61,12 @@ public strictfp class RobotPlayer {
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
             if(rc.onTheMap(nextLoc)) {
                 if(!moveCooldownDone) {
-                    // if it's not a wall, and if there's water we can fill it
-                    if (!rc.senseMapInfo(nextLoc).isWall() && (!rc.senseMapInfo(nextLoc).isWater() || !hasFlag)) {
-                        break;
-                    }
+                    if(!rc.senseMapInfo(nextLoc).isWall() && (!rc.senseMapInfo(nextLoc).isWater() || !hasFlag)) break;
                 } else {
-                    // if we can move there, or if we can fill it
-                    if (rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !hasFlag)) {
-                        break;
-                    }
+                    if(rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !hasFlag)) break;
                 }
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-                // otherwise, if we have the flag and the square we're trying to move to is obstructed by a friend
-                if(hasFlag && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
-                    rc.setIndicatorString("Passing bread to a friend!");
-                    break;
-                }
+                if(hasFlag && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) break;
             } else {
                 // reset if hugging wall, try other turn dir
                 stackSize = 1;
@@ -90,24 +80,21 @@ public strictfp class RobotPlayer {
         if(stackSize >= 8) {
             stackSize = 1;
         }
-        Direction dir = stack[stackSize - 1];
-        nextLoc = rc.getLocation().add(dir);
+        nextLoc = rc.getLocation().add(stack[stackSize - 1]);
         nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-        if(rc.canFill(nextLoc) && !hasFlag) {
-            rc.fill(nextLoc);
-        }
-        MapLocation old = rc.getLocation();
-        if(rc.canMove(dir)) {
-            if (rc.hasFlag() && rc.canDropFlag(rc.getLocation().add(dir))) {
-                rc.dropFlag(rc.getLocation().add(dir));
+        if(rc.canFill(nextLoc) && !hasFlag) rc.fill(nextLoc);
+        if(rc.canMove(stack[stackSize - 1])) {
+            MapLocation old = rc.getLocation();
+            if (rc.hasFlag() && rc.canDropFlag(rc.getLocation().add(stack[stackSize - 1]))) {
+                rc.dropFlag(rc.getLocation().add(stack[stackSize - 1]));
             }
-            rc.move(dir);
+            rc.move(stack[stackSize - 1]);
+            if (rc.canPickupFlag(old) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
+                rc.pickupFlag(old);
+            }
         }
-        if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) {
+        if(hasFlag && rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.team == rc.getTeam()) {
             rc.dropFlag(nextLoc);
-        }
-        if (rc.canPickupFlag(old) && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
-            rc.pickupFlag(old);
         }
     }
 
@@ -181,8 +168,8 @@ public strictfp class RobotPlayer {
             RobotInfo attackTarget = possibleEnemies[0];
             for(RobotInfo enemy : possibleEnemies) {
                 if(rc.canAttack(enemy.getLocation())
-                   && (enemy.hasFlag() && !attackTarget.hasFlag()
-                       || (enemy.hasFlag() == attackTarget.hasFlag() && enemy.health < attackTarget.health))) {
+                        && (enemy.hasFlag() && !attackTarget.hasFlag()
+                        || (enemy.hasFlag() == attackTarget.hasFlag() && enemy.health < attackTarget.health))) {
                     attackTarget = enemy;
                 }
             }
@@ -197,8 +184,8 @@ public strictfp class RobotPlayer {
         RobotInfo healTarget = rc.senseRobot(rc.getID());
         for (RobotInfo ally : nearbyAllyRobots) {
             if(rc.canHeal(ally.getLocation())
-               && (ally.hasFlag() && !healTarget.hasFlag()
-                   || (ally.hasFlag() == healTarget.hasFlag() && ally.health < healTarget.health))) {
+                    && (ally.hasFlag() && !healTarget.hasFlag()
+                    || (ally.hasFlag() == healTarget.hasFlag() && ally.health < healTarget.health))) {
                 healTarget = ally;
             }
         }
@@ -209,38 +196,18 @@ public strictfp class RobotPlayer {
 
     static void attackOrHeal() throws GameActionException {
         RobotInfo[] nearby = rc.senseNearbyRobots();
-        for (RobotInfo robot: nearby) {
-            if (robot.hasFlag() && robot.getTeam() == rc.getTeam()) {
-                MapLocation loc = robot.getLocation();
-                if (rc.canHeal(loc)) {
-                    rc.heal(loc);
-                    return;
-                }
-            }
-        }
-        for (RobotInfo robot: nearby) {
-            if (robot.hasFlag() && robot.getTeam() == rc.getTeam().opponent()) {
-                MapLocation loc = robot.getLocation();
-                if (rc.canAttack(loc)) {
-                    rc.attack(loc);
-                    return;
-                }
-            }
-        }
         Arrays.sort(nearby, (a, b) -> { return a.getHealth() - b.getHealth(); });
         for (RobotInfo robot: nearby) {
             MapLocation loc = robot.getLocation();
             if (robot.getTeam() == rc.getTeam()) {
                 if (rc.canHeal(loc)) {
-                    rc.setIndicatorLine(rc.getLocation(), loc, 0, 255, 0);
                     rc.heal(loc);
-                    return;
+                    break;
                 }
             } else {
                 if (rc.canAttack(loc)) {
-                    rc.setIndicatorLine(rc.getLocation(), loc, 255, 0, 0);
                     rc.attack(loc);
-                    return;
+                    break;
                 }
             }
         }
@@ -276,18 +243,6 @@ public strictfp class RobotPlayer {
         }
     }
 
-    static void trapSpawn() throws GameActionException {
-        if (rc.senseNearbyFlags(-1, rc.getTeam()).length > 0) {
-            for (MapInfo info : rc.senseNearbyMapInfos()) {
-                if (info.isSpawnZone()) {
-                    if (rc.canBuild(TrapType.EXPLOSIVE, info.getMapLocation())) {
-                        rc.build(TrapType.EXPLOSIVE, info.getMapLocation());
-                    }
-                }
-            }
-        }
-    }
-
     public static void run(RobotController _rc) throws GameActionException {
         rc = _rc;
         rng = new Random(rc.getID());
@@ -309,13 +264,11 @@ public strictfp class RobotPlayer {
                     for (MapLocation loc : spawnLocs) {
                         if (rc.canSpawn(loc)) {
                             rc.spawn(loc);
-                            trapSpawn();
                             swarmTarget = new MapLocation(-1, -1);
                             break;
                         }
                     }
                 } else if (rc.getRoundNum() <= 150) {
-                    trapSpawn();
                     MapLocation nextLoc;
                     MapLocation[] crumbs = rc.senseNearbyCrumbs(-1);
                     if(crumbs.length > 0) {
@@ -334,6 +287,9 @@ public strictfp class RobotPlayer {
                         }
                         nextLoc = target;
                     }
+                    if (!rc.onTheMap(nextLoc)) {
+                        System.out.println(nextLoc.x + ", " + nextLoc.y);
+                    }
                     moveBetter(nextLoc);
                 } else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
@@ -342,7 +298,6 @@ public strictfp class RobotPlayer {
                     targetCell = findTarget();
                     rc.setIndicatorString("Going to " + String.valueOf(targetCell.x) + " " + String.valueOf(targetCell.y));
                     attackOrHeal();
-                    trapSpawn();
                     RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
                     if (enemies.length > 0 && !rc.hasFlag() && rc.senseNearbyFlags(3, rc.getTeam().opponent()).length == 0) {
                         int minTargeted = 0;
@@ -373,6 +328,7 @@ public strictfp class RobotPlayer {
                             }
                         }
                         if (n > 0) {
+                            rc.setIndicatorString("Targeted by " + minTargeted);
                             MapLocation finalTargetCell = targetCell;
                             Arrays.sort(choices, 0, n, (a, b) -> {
                                 return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
@@ -414,10 +370,10 @@ public strictfp class RobotPlayer {
                     attackOrHeal();
                     buildTraps();
                     // Attempt to buy global upgrades
-                    if (rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
+                    if (rc.getRoundNum() >= 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
                     }
-                    if (rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                    if (rc.getRoundNum() >= 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
                         rc.buyGlobal(GlobalUpgrade.HEALING);
                     }
                 }
