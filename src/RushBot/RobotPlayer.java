@@ -439,14 +439,11 @@ public strictfp class RobotPlayer {
         return false;
     }
 
-<<<<<<< HEAD
-=======
     /**
      * Updates the contents of a cell using knowledge of symmetry.
      * @param x the x coordinate
      * @param y the y coordinate
      */
->>>>>>> a5e9294 (Add hashing and board communiation)
     static void updateCellSymmetry(int x, int y) {
         if (symmetry == Symmetry.HORIZONTAL || symmetry == Symmetry.ALL) {
             board[rc.getMapWidth() - 1 - x][y] = board[x][y];
