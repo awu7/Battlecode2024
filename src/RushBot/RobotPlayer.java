@@ -23,10 +23,15 @@ public strictfp class RobotPlayer {
             Direction.WEST,
             Direction.NORTHWEST,
     };
+    static String indicatorString = "";
+    static <T> void debug(T x) {
+        indicatorString += String.valueOf(x) + "; ";
+    }
     static MapLocation centre;
     static int movesLeft = 0;
     static MapLocation target;
     static int team = 0;
+    static int round;
 
     /**
      * ID compression system.
@@ -133,7 +138,7 @@ public strictfp class RobotPlayer {
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
                 // otherwise, if we have the flag and the square we're trying to move to is obstructed by a friend
                 if (hasFlag && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
-                    rc.setIndicatorString("Passing bread to a friend!");
+                    debug("Passing bread to a friend!");
                     break;
                 }
             } else {
@@ -519,91 +524,31 @@ public strictfp class RobotPlayer {
         }
     }
 
-    public static void broadCastVision(int arrayIdx) throws GameActionException {
+    public static void broadcastVision(int arrayIdx) throws GameActionException {
         int x = rc.getLocation().x, y = rc.getLocation().y;
         int hash1 = x * rc.getMapHeight() + y, hash2 = 0;
         rc.writeSharedArray(arrayIdx, hash1);
         MapLocation loc;
-        loc = rc.getLocation().translate(-2, 3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1;
-        }
-        loc = rc.getLocation().translate(-1, 3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 1;
-        }
-        loc = rc.getLocation().translate(0, 3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 2;
-        }
-        loc = rc.getLocation().translate(1, 3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 3;
-        }
-        loc = rc.getLocation().translate(2, 3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 4;
-        }
-        loc = rc.getLocation().translate(3, 2);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 5;
-        }
-        loc = rc.getLocation().translate(3, 1);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 6;
-        }
-        loc = rc.getLocation().translate(3, 0);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 7;
-        }
-        loc = rc.getLocation().translate(3, -1);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 8;
-        }
-        loc = rc.getLocation().translate(3, -2);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 9;
-        }
-        loc = rc.getLocation().translate(2, -3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 10;
-        }
-        loc = rc.getLocation().translate(1, -3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 11;
-        }
-        loc = rc.getLocation().translate(0, -3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 12;
-        }
-        loc = rc.getLocation().translate(-1, -3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 13;
-        }
-        loc = rc.getLocation().translate(-2, -3);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 14;
-        }
-        loc = rc.getLocation().translate(-3, -2);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash2 |= 1 << 15;
-        }
-        loc = rc.getLocation().translate(-3, -1);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash1 |= 1 << 12;
-        }
-        loc = rc.getLocation().translate(-3, 0);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash1 |= 1 << 13;
-        }
-        loc = rc.getLocation().translate(-3, 1);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash1 |= 1 << 14;
-        }
-        loc = rc.getLocation().translate(-3, 2);
-        if (rc.onTheMap(loc) && rc.senseMapInfo(loc).isWall()) {
-            hash1 |= 1 << 15;
-        }
+        if(rc.onTheMap(loc = rc.getLocation().translate(-2, 3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1;
+        if(rc.onTheMap(loc = rc.getLocation().translate(-1, 3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 1;
+        if(rc.onTheMap(loc = rc.getLocation().translate(0, 3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 2;
+        if(rc.onTheMap(loc = rc.getLocation().translate(1, 3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 3;
+        if(rc.onTheMap(loc = rc.getLocation().translate(2, 3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 4;
+        if(rc.onTheMap(loc = rc.getLocation().translate(3, 2)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 5;
+        if(rc.onTheMap(loc = rc.getLocation().translate(3, 1)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 6;
+        if(rc.onTheMap(loc = rc.getLocation().translate(3, 0)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 7;
+        if(rc.onTheMap(loc = rc.getLocation().translate(3, -1)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 8;
+        if(rc.onTheMap(loc = rc.getLocation().translate(3, -2)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 9;
+        if(rc.onTheMap(loc = rc.getLocation().translate(2, -3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 10;
+        if(rc.onTheMap(loc = rc.getLocation().translate(1, -3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 11;
+        if(rc.onTheMap(loc = rc.getLocation().translate(0, -3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 12;
+        if(rc.onTheMap(loc = rc.getLocation().translate(-1, -3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 13;
+        if(rc.onTheMap(loc = rc.getLocation().translate(-2, -3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 14;
+        if(rc.onTheMap(loc = rc.getLocation().translate(-3, -2)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1 << 15;
+        if(rc.onTheMap(loc = rc.getLocation().translate(-3, -1)) && rc.senseMapInfo(loc).isWall()) hash1 |= 1 << 12;
+        if(rc.onTheMap(loc = rc.getLocation().translate(-3, 0)) && rc.senseMapInfo(loc).isWall()) hash1 |= 1 << 13;
+        if(rc.onTheMap(loc = rc.getLocation().translate(-3, 1)) && rc.senseMapInfo(loc).isWall()) hash1 |= 1 << 14;
+        if(rc.onTheMap(loc = rc.getLocation().translate(-3, 2)) && rc.senseMapInfo(loc).isWall()) hash1 |= 1 << 15;
         rc.writeSharedArray(arrayIdx, hash1);
         rc.writeSharedArray(arrayIdx | 1, hash2);
     }
@@ -612,66 +557,26 @@ public strictfp class RobotPlayer {
         int hash1 = rc.readSharedArray(arrIdx), hash2 = rc.readSharedArray(arrIdx | 1);
         int locHash = hash1 & ((1 << 12) - 1);
         int x = locHash / rc.getMapHeight(), y = locHash % rc.getMapHeight();
-        if (rc.onTheMap(new MapLocation(x - 2, y + 3))) {
-            board[x - 2][y + 3] = (hash2 >>> 0) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x - 1, y + 3))) {
-            board[x - 1][y + 3] = (hash2 >>> 1) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x, y + 3))) {
-            board[x][y + 3] = (hash2 >>> 2) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 1, y + 3))) {
-            board[x + 1][y + 3] = (hash2 >>> 3) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 2, y + 3))) {
-            board[x + 2][y + 3] = (hash2 >>> 4) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 3, y + 2))) {
-            board[x + 3][y + 2] = (hash2 >>> 5) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 3, y + 1))) {
-            board[x + 3][y + 1] = (hash2 >>> 6) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 3, y))) {
-            board[x + 3][y] = (hash2 >>> 7) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 3, y - 1))) {
-            board[x + 3][y - 1] = (hash2 >>> 8) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 3, y - 2))) {
-            board[x + 3][y - 2] = (hash2 >>> 9) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 2, y - 3))) {
-            board[x + 2][y - 3] = (hash2 >>> 10) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x + 1, y - 3))) {
-            board[x + 1][y - 3] = (hash2 >>> 11) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x, y - 3))) {
-            board[x][y - 3] = (hash2 >>> 12) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x - 1, y - 3))) {
-            board[x - 1][y - 3] = (hash2 >>> 13) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x - 2, y - 3))) {
-            board[x - 2][y - 3] = (hash2 >>> 14) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x - 3, y - 2))) {
-            board[x - 3][y - 2] = (hash2 >>> 15) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x - 3, y - 1))) {
-            board[x - 3][y - 1] = (hash1 >>> 12) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x - 3, y))) {
-            board[x - 3][y] = (hash1 >>> 13) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x - 3, y + 1))) {
-            board[x - 3][y + 1] = (hash1 >>> 14) & 1;
-        }
-        if (rc.onTheMap(new MapLocation(x - 3, y + 2))) {
-            board[x - 3][y + 2] = (hash1 >>> 15) & 1;
-        }
+        if(rc.onTheMap(new MapLocation(x - 2, y + 3))) board[x - 2][y + 3] = (hash2 >>> 0) & 1;
+        if(rc.onTheMap(new MapLocation(x - 1, y + 3))) board[x - 1][y + 3] = (hash2 >>> 1) & 1;
+        if(rc.onTheMap(new MapLocation(x + 0, y + 3))) board[x + 0][y + 3] = (hash2 >>> 2) & 1;
+        if(rc.onTheMap(new MapLocation(x + 1, y + 3))) board[x + 1][y + 3] = (hash2 >>> 3) & 1;
+        if(rc.onTheMap(new MapLocation(x + 2, y + 3))) board[x + 2][y + 3] = (hash2 >>> 4) & 1;
+        if(rc.onTheMap(new MapLocation(x + 3, y + 2))) board[x + 3][y + 2] = (hash2 >>> 5) & 1;
+        if(rc.onTheMap(new MapLocation(x + 3, y + 1))) board[x + 3][y + 1] = (hash2 >>> 6) & 1;
+        if(rc.onTheMap(new MapLocation(x + 3, y + 0))) board[x + 3][y + 0] = (hash2 >>> 7) & 1;
+        if(rc.onTheMap(new MapLocation(x + 3, y - 1))) board[x + 3][y - 1] = (hash2 >>> 8) & 1;
+        if(rc.onTheMap(new MapLocation(x + 3, y - 2))) board[x + 3][y - 2] = (hash2 >>> 9) & 1;
+        if(rc.onTheMap(new MapLocation(x + 2, y - 3))) board[x + 2][y - 3] = (hash2 >>> 10) & 1;
+        if(rc.onTheMap(new MapLocation(x + 1, y - 3))) board[x + 1][y - 3] = (hash2 >>> 11) & 1;
+        if(rc.onTheMap(new MapLocation(x + 0, y - 3))) board[x + 0][y - 3] = (hash2 >>> 12) & 1;
+        if(rc.onTheMap(new MapLocation(x - 1, y - 3))) board[x - 1][y - 3] = (hash2 >>> 13) & 1;
+        if(rc.onTheMap(new MapLocation(x - 2, y - 3))) board[x - 2][y - 3] = (hash2 >>> 14) & 1;
+        if(rc.onTheMap(new MapLocation(x - 3, y - 2))) board[x - 3][y - 2] = (hash2 >>> 15) & 1;
+        if(rc.onTheMap(new MapLocation(x - 3, y - 1))) board[x - 3][y - 1] = (hash1 >>> 12) & 1;
+        if(rc.onTheMap(new MapLocation(x - 3, y + 0))) board[x - 3][y + 0] = (hash1 >>> 13) & 1;
+        if(rc.onTheMap(new MapLocation(x - 3, y + 1))) board[x - 3][y + 1] = (hash1 >>> 14) & 1;
+        if(rc.onTheMap(new MapLocation(x - 3, y + 2))) board[x - 3][y + 2] = (hash1 >>> 15) & 1;
     }
 
     public static void run(RobotController _rc) throws GameActionException {
@@ -687,7 +592,7 @@ public strictfp class RobotPlayer {
         board = new int[rc.getMapWidth()][rc.getMapHeight()];
         while (true) {
             try {
-                int round = rc.getRoundNum();
+                round = rc.getRoundNum();
                 if (round == 1) {
                     int i = 0;
                     while (rc.readSharedArray(i) > 0) {
@@ -717,29 +622,29 @@ public strictfp class RobotPlayer {
                             }
                         }
                         if (round == 201) {
-//                            for (int x = 0; x < rc.getMapWidth(); ++x) {
-//                                for (int y = 0; y < rc.getMapHeight(); ++y) {
-//                                    if (board[x][y] == 5) {
-//                                        board[x][y] = 1;
-//                                    }
-//                                    if (Clock.getBytecodesLeft() < 4000) {
-//                                        Clock.yield();
-//                                    }
-//                                }
-//                            }
-//                            Clock.yield();
-//                            continue;
-//                            printBoard();
+                           // for (int x = 0; x < rc.getMapWidth(); ++x) {
+                           //     for (int y = 0; y < rc.getMapHeight(); ++y) {
+                           //         if (board[x][y] == 5) {
+                           //             board[x][y] = 1;
+                           //         }
+                           //         if (Clock.getBytecodesLeft() < 4000) {
+                           //             Clock.yield();
+                           //         }
+                           //     }
+                           // }
+                           // Clock.yield();
+                           // continue;
+                           // printBoard();
                         }
                         // We are the scouting duck! Record all squares we see in the 2d array.
-//                        recordVision();
-//                        if (justUpdated) {
-//                            justUpdated = false;
-//                            Clock.yield();
-//                            continue;
-//                        }
+                        //     recordVision();
+                        // if (justUpdated) {
+                        //     justUpdated = false;
+                        //     Clock.yield();
+                        //     continue;
+                        // }
                     } else if (round >= 3 && round <= 150 && selfIdx >= 2 && selfIdx <= 31) {
-                        broadCastVision(selfIdx << 1);
+                        broadcastVision(selfIdx << 1);
                     }
                 }
                 if (!rc.isSpawned()) {
@@ -800,7 +705,7 @@ public strictfp class RobotPlayer {
                     for (RobotInfo ally : nearbyAllies) {
                         nearbyHP += ally.health;
                     }
-                    int threshold = min(nearbyAllies.length*75, 751) * (nearbyAllies.length + 1);
+                    int threshold = min(nearbyAllies.length * 75, 751) * (nearbyAllies.length + 1);
                     int enemyHP = 0;
                     RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
                     for(RobotInfo enemy : enemies) {
@@ -874,9 +779,9 @@ public strictfp class RobotPlayer {
                                     rc.move(choice);
                                 }
                             }
-                        } else if (nearbyHP >= threshold || rc.senseNearbyFlags(13, rc.getTeam().opponent()).length > 0) {
+                        } else if (nearbyHP >= threshold || rc.senseNearbyFlags(13, rc.getTeam().opponent()).length == 0) {
                             moveBetter(targetCell);
-                            rc.setIndicatorString("Nope, not kiting");
+                            debug("Nope, not kiting");
                         }
                     }
                     pickupFlag(true);
@@ -900,7 +805,12 @@ public strictfp class RobotPlayer {
                 if (rc.onTheMap(targetCell) && rc.isSpawned()) {
                     rc.setIndicatorLine(rc.getLocation(), targetCell, 0, 255, 0);
                 }
-                rc.setIndicatorString(String.valueOf("TurnDir: " + String.valueOf(turnDir) + " StackSize: " + String.valueOf(stackSize) + " Cooldowns: " + rc.getMovementCooldownTurns()) + " " + String.valueOf(rc.getActionCooldownTurns()));
+                debug("TD: " + String.valueOf(turnDir));
+                debug("SS: " + String.valueOf(stackSize));
+                debug("MC: " + String.valueOf(rc.getMovementCooldownTurns()));
+                debug("AC: " + String.valueOf(rc.getActionCooldownTurns()));
+                rc.setIndicatorString(indicatorString);
+                indicatorString = "";
                 Clock.yield();
             }
         }
