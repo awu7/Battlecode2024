@@ -90,6 +90,32 @@ public strictfp class RobotPlayer {
         return b;
     }
 
+    /**
+     * Helper function to check if a friend can pickup a flag dropped in a direction.
+     * @param dir the direction to drop the flag.
+     * @return
+     */
+    static boolean canFriendPickup(Direction dir) throws GameActionException {
+        MapLocation loc = rc.getLocation().add(dir);
+        RobotInfo robot = rc.senseRobotAtLocation(loc);
+        if (robot != null && robot.getTeam() == rc.getTeam()) {
+            return true;
+        }
+        robot = rc.senseRobotAtLocation(loc.add(dir));
+        if (robot != null && robot.getTeam() == rc.getTeam()) {
+            return true;
+        }
+        robot = rc.senseRobotAtLocation(loc.add(dir.rotateRight()));
+        if (robot != null && robot.getTeam() == rc.getTeam()) {
+            return true;
+        }
+        robot = rc.senseRobotAtLocation(loc.add(dir.rotateLeft()));
+        if (robot != null && robot.getTeam() == rc.getTeam()) {
+            return true;
+        }
+        return false;
+    }
+
     static MapLocation closest(MapLocation[] locs) {
         int mn = 1000000000;
         MapLocation res = locs[0];
@@ -120,7 +146,7 @@ public strictfp class RobotPlayer {
         MapLocation nextLoc;
         RobotInfo nextLocRobot;
         boolean triedOtherDir = false;
-        boolean hasFlag = rc.hasFlag() || rc.canPickupFlag(rc.getLocation());
+        boolean hasFlag = rc.hasFlag();
         while(stackSize < 8) {
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
             if(rc.onTheMap(nextLoc)) {
@@ -134,12 +160,6 @@ public strictfp class RobotPlayer {
                     if (rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !hasFlag)) {
                         break;
                     }
-                }
-                nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-                // otherwise, if we have the flag and the square we're trying to move to is obstructed by a friend
-                if (hasFlag && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
-                    debug("Passing bread to a friend!");
-                    break;
                 }
             } else {
                 // reset if hugging wall, try other turn dir
@@ -158,19 +178,13 @@ public strictfp class RobotPlayer {
         }
         Direction dir = stack[stackSize - 1];
         nextLoc = rc.getLocation().add(dir);
-        nextLocRobot = rc.senseRobotAtLocation(nextLoc);
         if (rc.canFill(nextLoc) && !hasFlag) {
             rc.fill(nextLoc);
         }
         if(rc.canMove(dir)) {
-            if (rc.hasFlag() && rc.canDropFlag(rc.getLocation().add(dir))) {
-                rc.dropFlag(rc.getLocation().add(dir));
+            if (rc.canMove(dir)) {
+                rc.move(dir);
             }
-            rc.move(dir);
-        }
-        if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
-            rc.dropFlag(nextLoc);
-            writeStack();
         }
     }
     static int stackPassIndex = 3;
@@ -207,6 +221,18 @@ public strictfp class RobotPlayer {
         rc.writeSharedArray(2, loc.y);
     }
 
+    static boolean canPickupAnyFlag() throws GameActionException {
+        if (rc.canPickupFlag(rc.getLocation())) {
+            return true;
+        }
+        for (Direction dir: directions) {
+            if (rc.canPickupFlag(rc.getLocation().add(dir))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static MapLocation swarmTarget;
     static int swarmEnd = 0;
     static MapLocation findTarget() throws GameActionException {
@@ -214,7 +240,7 @@ public strictfp class RobotPlayer {
         if(swarmLeader == rc.getID()) {
             rc.writeSharedArray(0, 0);
         }
-        if(rc.hasFlag() || rc.canPickupFlag(rc.getLocation())) return closest(rc.getAllySpawnLocations());
+        if(rc.hasFlag() || canPickupAnyFlag()) return closest(rc.getAllySpawnLocations());
         FlagInfo[] friendlyFlags = rc.senseNearbyFlags(-1, rc.getTeam());
         if(friendlyFlags.length > 0 && rc.senseNearbyRobots(-1, rc.getTeam().opponent()).length > 0) {
             for(FlagInfo f : friendlyFlags) {
@@ -617,9 +643,11 @@ public strictfp class RobotPlayer {
                 if (rc.isSpawned()) {
                     if (selfIdx <= 0) {
                         if (round >= 3 && round <= 150) {
+                            System.out.println(Clock.getBytecodeNum());
                             for (int i = 4; i < 64; i += 2) {
                                 decodeBroadcast(i);
                             }
+                            System.out.println(Clock.getBytecodeNum());
                         }
                         if (round == 201) {
                            // for (int x = 0; x < rc.getMapWidth(); ++x) {
@@ -696,7 +724,7 @@ public strictfp class RobotPlayer {
                     moveBetter(nextLoc);
                 } else {
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
-                    pickupFlag(false);
+                    pickupFlag(true);
                     targetCell = findTarget();
                     if(rc.senseNearbyFlags(0).length == 0) attackOrHeal();
                     trapSpawn();
