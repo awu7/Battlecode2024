@@ -791,61 +791,63 @@ public strictfp class RobotPlayer {
                     }
                     // Movement
                     {
-                        if (enemyHP * 3 > nearbyHP * 2
-                            && !rc.hasFlag()
-                            && rc.senseNearbyFlags(9, rc.getTeam().opponent()).length == 0
-                            && rc.senseNearbyFlags(4, rc.getTeam()).length == 0) {
-                            int minTargeted = 0;
+                        if (enemyHP * 5 > nearbyHP * 2
+                                && !rc.hasFlag()
+                                && rc.senseNearbyFlags(9, rc.getTeam().opponent()).length == 0
+                                && rc.senseNearbyFlags(4, rc.getTeam()).length == 0) {
+                            // Begin Kiting
+                            int currTargeted = 0;
                             Direction[] choices = new Direction[8];
-                            MapLocation loc = rc.getLocation();
+                            MapLocation rcLocation = rc.getLocation();
+                            boolean returnToCombat = rc.isActionReady(); // Only return if currently safe
                             for (RobotInfo enemy : enemies) {
-                                if (enemy.getLocation().isWithinDistanceSquared(loc, 4)) {
-                                    minTargeted++;
+                                if (enemy.getLocation().isWithinDistanceSquared(rcLocation, 4)) {
+                                    currTargeted++;
+                                    returnToCombat = false;
                                 }
                             }
-                            int n = 0;
+                            int minTargeted = currTargeted;
+                            if (returnToCombat) {
+                                minTargeted = 1000; // Reset min
+                            }
+                            int n = 0; // size of choices;
                             shuffle();
                             for (Direction dir : directions) {
                                 if (rc.canMove(dir)) {
                                     int count = 0;
                                     for (RobotInfo enemy : enemies) {
-                                        if (enemy.getLocation().isWithinDistanceSquared(loc.add(dir), 4)) {
+                                        if (enemy.getLocation().isWithinDistanceSquared(rcLocation.add(dir), 4)) {
                                             count++;
                                         }
                                     }
-                                    if (count < minTargeted) {
-                                        minTargeted = count;
-                                        n = 0;
-                                    }
-                                    if (count == minTargeted) {
-                                        choices[n++] = dir;
+                                    if (!(returnToCombat && count == 0)) {
+                                        if (count < minTargeted) {
+                                            minTargeted = count;
+                                            n = 0;
+                                        }
+                                        if (count == minTargeted) {
+                                            choices[n++] = dir;
+                                        }
                                     }
                                 }
                             }
                             if (n > 0) {
+                                // Choose the best choice
+                                // Choices are either the safest, or safest where we can attack
                                 MapLocation finalTargetCell = targetCell;
                                 Arrays.sort(choices, 0, n, (a, b) -> {
                                     return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
                                 });
                                 rc.move(choices[0]);
                             } else {
+                                // There are no choices
                                 shuffle();
-                                int minAdj = 0;
-                                for (RobotInfo friend : rc.senseNearbyRobots(-1, rc.getTeam())) {
-                                    if (friend.getLocation().isWithinDistanceSquared(rc.getLocation(), 2)) {
-                                        minAdj++;
-                                    }
-                                }
+                                int minAdj = rc.senseNearbyRobots(2, rc.getTeam()).length;
                                 Direction choice = Direction.NORTH;
                                 boolean overriden = false;
                                 for (Direction dir : directions) {
                                     if (rc.canMove(dir)) {
-                                        int adjCount = 0;
-                                        for (RobotInfo friend : rc.senseNearbyRobots(-1, rc.getTeam())) {
-                                            if (friend.getLocation().isWithinDistanceSquared(rc.getLocation().add(dir), 2)) {
-                                                adjCount++;
-                                            }
-                                        }
+                                        int adjCount = rc.senseNearbyRobots(-1, rc.getTeam()).length;
                                         if (adjCount < minAdj) {
                                             choice = dir;
                                             minAdj = adjCount;
@@ -855,6 +857,9 @@ public strictfp class RobotPlayer {
                                 }
                                 if (overriden) {
                                     rc.move(choice);
+                                } else if (returnToCombat) {
+                                    // Attempt to move towards enemies
+                                    moveBetter(enemies[0].getLocation());
                                 }
                             }
                         } else if (nearbyHP >= threshold || rc.senseNearbyFlags(13, rc.getTeam().opponent()).length == 0) {
