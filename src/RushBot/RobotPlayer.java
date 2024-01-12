@@ -28,6 +28,8 @@ public strictfp class RobotPlayer {
         indicatorString += String.valueOf(x) + "; ";
     }
     static MapLocation centre;
+    static MapLocation[] spawnCentres = new MapLocation[3];
+    static boolean[] arrived = {false, false, false};
     static int movesLeft = 0;
     static MapLocation target;
     static int team = 0;
@@ -54,7 +56,7 @@ public strictfp class RobotPlayer {
 
     // 2d array storing the board
     // 0 = undiscovered
-    // 1 = emtpy passable tile
+    // 1 = empty passable tile
     // 2 = wall
     // 3 = our spawn zone
     // 4 = opponent's spawn zone
@@ -425,7 +427,7 @@ public strictfp class RobotPlayer {
         if (rc.senseNearbyFlags(-1, rc.getTeam()).length > 0) {
             for (MapInfo info : rc.senseNearbyMapInfos()) {
                 if (info.isSpawnZone()) {
-                    for (int i=38; i<43; i++){
+                    for (int i=40; i<43; i++){
                         if (rc.getID() != ids[i]+9999) continue;
                         if (isCentreSpawn(info.getMapLocation())) {
                             if (rc.canBuild(TrapType.STUN, info.getMapLocation())) {
@@ -635,6 +637,7 @@ public strictfp class RobotPlayer {
             team = 2;
         }
         board = new int[rc.getMapWidth()][rc.getMapHeight()];
+        System.out.println(Clock.getBytecodeNum());
         while (true) {
             try {
                 round = rc.getRoundNum();
@@ -658,8 +661,20 @@ public strictfp class RobotPlayer {
                             rc.writeSharedArray(i, 0);
                         }
                     }
+                    int f = 0;
+                    for (MapLocation m : rc.getAllySpawnLocations()){
+                        int adjCount = 0;
+                        for(MapLocation m2 : rc.getAllySpawnLocations()) {
+                            if(Math.abs(m.x - m2.x) <= 1 && Math.abs(m.y - m2.y) <= 1) adjCount++;
+                        }
+                        if (adjCount == 9){
+                            spawnCentres[f] = m;
+                            f++;
+                        }
+                    }
                 }
                 if (rc.isSpawned()) {
+                    debug(idx[rc.getID()-9999]);
                     if (selfIdx <= 0) {
                         if (round >= 3 && round <= 150) {
                             System.out.println(Clock.getBytecodeNum());
@@ -722,8 +737,17 @@ public strictfp class RobotPlayer {
                         }
                     }
                 } else if (round <= 150){
-                    for (int i=38; i<43; i++){
+                    for (int i=40; i<43; i++){
                         if (rc.getID() != ids[i]+9999) continue;
+                        if (rc.getLocation() == spawnCentres[i-40]){
+                            arrived[i-40] = true;
+                            System.out.println("Arrived " + rc.getLocation() + " " +spawnCentres[i-40]);
+                        }
+                        if (!arrived[i-40]){
+                            System.out.println(rc.getLocation() + " " +spawnCentres[i-40]);
+                            moveBetter(spawnCentres[i-40]);
+                            rc.setIndicatorLine(rc.getLocation(), spawnCentres[i-40], 0, 0, 255);
+                        }
                         for (Direction dir : directions){
                             if (rng.nextInt(4) == 1) continue;
                             if (rc.canMove(dir)) {
@@ -757,7 +781,7 @@ public strictfp class RobotPlayer {
                 }  else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
-                    for (int i=38; i<43; i++){
+                    for (int i=40; i<43; i++){
                         if (rc.getID() != ids[i]+9999) continue;
                         for (Direction dir : directions){
                             if (rng.nextInt(4) == 1) continue;
@@ -844,18 +868,18 @@ public strictfp class RobotPlayer {
                                 shuffle();
                                 int minAdj = rc.senseNearbyRobots(2, rc.getTeam()).length;
                                 Direction choice = Direction.NORTH;
-                                boolean overriden = false;
+                                boolean overridden = false;
                                 for (Direction dir : directions) {
                                     if (rc.canMove(dir)) {
                                         int adjCount = rc.senseNearbyRobots(-1, rc.getTeam()).length;
                                         if (adjCount < minAdj) {
                                             choice = dir;
                                             minAdj = adjCount;
-                                            overriden = true;
+                                            overridden = true;
                                         }
                                     }
                                 }
-                                if (overriden) {
+                                if (overridden) {
                                     rc.move(choice);
                                 } else if (returnToCombat) {
                                     // Attempt to move towards enemies
