@@ -165,7 +165,7 @@ public strictfp class RobotPlayer {
                 nextLocRobot = rc.senseRobotAtLocation(nextLoc);
                 // otherwise, if we have the flag and the square we're trying to move to is obstructed by a friend
                 if (hasFlag && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
-                    debug("Passing bread to a friend!");
+                    debug("Passing flag");
                     break;
                 }
             } else {
@@ -307,23 +307,7 @@ public strictfp class RobotPlayer {
             }
         }
     }
-    static void heal() throws GameActionException {
-        // Also prioritise flag carriers when healing
-        RobotInfo[] nearbyAllyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
-        RobotInfo healTarget = rc.senseRobot(rc.getID());
-        for (RobotInfo ally : nearbyAllyRobots) {
-            if(rc.canHeal(ally.getLocation())
-               && (ally.hasFlag() && !healTarget.hasFlag()
-                   || (ally.hasFlag() == healTarget.hasFlag() && ally.health < healTarget.health))) {
-                healTarget = ally;
-            }
-        }
-        if(rc.canHeal(healTarget.getLocation())) {
-            rc.heal(healTarget.getLocation());
-        }
-    }
-
-    static void attackOrHeal() throws GameActionException {
+    static void healFlagBearer() throws GameActionException {
         RobotInfo[] nearby = rc.senseNearbyRobots();
         for (RobotInfo robot: nearby) {
             if (robot.hasFlag() && robot.getTeam() == rc.getTeam()) {
@@ -334,6 +318,25 @@ public strictfp class RobotPlayer {
                 }
             }
         }
+    }
+    static void heal() throws GameActionException {
+        // Also prioritise flag carriers when healing
+        RobotInfo[] nearbyAllyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
+        RobotInfo healTarget = rc.senseRobot(rc.getID());
+        for (RobotInfo ally : nearbyAllyRobots) {
+            if(rc.canHeal(ally.getLocation())
+               && ally.health < healTarget.health) {
+                healTarget = ally;
+            }
+        }
+        if(rc.canHeal(healTarget.getLocation())) {
+            rc.heal(healTarget.getLocation());
+        }
+    }
+
+    static void attackOrHeal() throws GameActionException {
+        RobotInfo[] nearby = rc.senseNearbyRobots();
+        healFlagBearer();
         for (RobotInfo robot: nearby) {
             if (robot.hasFlag() && robot.getTeam() == rc.getTeam().opponent()) {
                 MapLocation loc = robot.getLocation();
@@ -735,11 +738,16 @@ public strictfp class RobotPlayer {
                         nextLoc = target;
                     }
                     moveBetter(nextLoc);
+                }  else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
+                    // wait, we need to pick up a flag dropped by a teammate
                 } else {
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     pickupFlag(true);
                     targetCell = findTarget();
-                    if(rc.senseNearbyFlags(0).length == 0) attackOrHeal();
+                    if(rc.senseNearbyFlags(0).length == 0) {
+                        healFlagBearer();
+                        attack();
+                    }
                     trapSpawn();
                     // Determine whether to move or not
                     int nearbyHP = rc.getHealth();
@@ -826,7 +834,9 @@ public strictfp class RobotPlayer {
                         }
                     }
                     pickupFlag(true);
-                    attackOrHeal();
+                    healFlagBearer();
+                    attack();
+                    heal();
                     buildTraps();
                     // Attempt to buy global upgrades
                     if (rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
