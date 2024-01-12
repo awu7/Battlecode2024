@@ -97,6 +97,16 @@ public strictfp class RobotPlayer {
     }
 
     /**
+     * Helper function to calculate the minimum distance to the edge of
+     * the map
+     * @param loc Location to find the smallest distance to the edge from
+     * @return The smallest distance to the edge of the map
+     */
+    static int distFromEdge(MapLocation loc) {
+        return min(min(loc.x, rc.getMapWidth()-loc.x), min(loc.y, rc.getMapHeight()-loc.y));
+    }
+
+    /**
      * Helper function to check if a friend can pick up a flag dropped in a direction.
      * @param dir the direction to drop the flag.
      * @return
@@ -373,7 +383,8 @@ public strictfp class RobotPlayer {
 
     static void buildTraps() throws GameActionException {
         boolean ok = true;
-        for(MapInfo m : rc.senseNearbyMapInfos(-1)) {
+        MapInfo[] mapInfos = rc.senseNearbyMapInfos(-1);
+        for(MapInfo m : mapInfos) {
             if(m.isWall()) {
                 ok = false;
                 break;
@@ -385,15 +396,27 @@ public strictfp class RobotPlayer {
             }
         }
         if(!ok) return;
-        if(rc.getCrumbs() >= 200 && rc.getRoundNum() >= 200) {
+        if(rc.getCrumbs() >= 250 && rc.getRoundNum() >= 200) {
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+            // Calculate number of nearby traps
+            int nearbyTraps = 0;
+            for (MapInfo mi : mapInfos) {
+                if (mi.getTrapType() != TrapType.NONE) {
+                    ++nearbyTraps;
+                }
+            }
             for(Direction d : Direction.values()) {
                 boolean adjTrap = false;
+                TrapType chosenTrap = TrapType.STUN;
+                /*if (rng.nextBoolean()) {
+                    chosenTrap = TrapType.EXPLOSIVE;
+                }*/
                 for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 4)) {
                     if(m.getTrapType() == TrapType.STUN) adjTrap = true;
                 }
-                if(!adjTrap && rc.canBuild(TrapType.STUN, rc.getLocation().add(d)) && rng.nextInt(max(10 - (3 * visibleEnemies.length), 2)) == 0) {
-                    rc.build(TrapType.STUN, rc.getLocation().add(d));
+                int chanceReciprocal = 5*max(min(max(10 - (3 * visibleEnemies.length), 2), 2+nearbyTraps*2), 21 - 3*min(distFromEdge(rc.getLocation()), 7));
+                if(!adjTrap && rc.canBuild(chosenTrap, rc.getLocation().add(d)) && rng.nextInt(chanceReciprocal) == 0) {
+                    rc.build(chosenTrap, rc.getLocation().add(d));
                 }
             }
         }
