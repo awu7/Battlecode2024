@@ -387,8 +387,14 @@ public strictfp class RobotPlayer {
         if(!ok) return;
         if(rc.getCrumbs() >= 200 && rc.getRoundNum() >= 200) {
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-            if (rc.canBuild(TrapType.EXPLOSIVE, rc.getLocation()) && rng.nextInt(max(10 - (3*visibleEnemies.length), 2)) == 0) {
-                rc.build(TrapType.EXPLOSIVE, rc.getLocation());
+            for(Direction d : Direction.values()) {
+                boolean adjTrap = false;
+                for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 4)) {
+                    if(m.getTrapType() == TrapType.STUN) adjTrap = true;
+                }
+                if(!adjTrap && rc.canBuild(TrapType.STUN, rc.getLocation().add(d)) && rng.nextInt(max(10 - (3 * visibleEnemies.length), 2)) == 0) {
+                    rc.build(TrapType.STUN, rc.getLocation().add(d));
+                }
             }
         }
     }
@@ -742,7 +748,7 @@ public strictfp class RobotPlayer {
                         nextLoc = target;
                     }
                     moveBetter(nextLoc);
-                }  else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
+                } else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
                     if (isBuilder != 0){
