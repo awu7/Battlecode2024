@@ -29,6 +29,7 @@ public strictfp class RobotPlayer {
     }
     static MapLocation centre;
     static MapLocation[] spawnCentres = new MapLocation[3];
+    static int[] builders = new int[10000];
     static int movesLeft = 0;
     static MapLocation target;
     static int team = 0;
@@ -76,7 +77,6 @@ public strictfp class RobotPlayer {
         }
     }
     static Symmetry symmetry = Symmetry.UNKNOWN;
-    static boolean justUpdated = false;
 
     static int max(int a, int b) {
         if (a > b) {
@@ -415,11 +415,8 @@ public strictfp class RobotPlayer {
             rc.build(TrapType.STUN, rc.getLocation());
         }
         for (int i=0; i<4; i++){
-            for (int j=40; j<43; j++){
-                if (rc.getID() != ids[j]+9999) continue;
-                if (rc.canBuild(TrapType.WATER, rc.getLocation().add(directions[i]))) {
-                    rc.build(TrapType.WATER, rc.getLocation().add(directions[i]));
-                }
+            if (rc.canBuild(TrapType.WATER, rc.getLocation().add(directions[i]))) {
+                rc.build(TrapType.WATER, rc.getLocation().add(directions[i]));
             }
         }
     }
@@ -652,6 +649,9 @@ public strictfp class RobotPlayer {
                             f++;
                         }
                     }
+                    for (int i=40; i<43; i++){
+                        builders[ids[i]] = i;
+                    }
                 }
                 if (rc.isSpawned()) {
                     debug(idx[rc.getID()-9999]);
@@ -701,7 +701,6 @@ public strictfp class RobotPlayer {
                     for (MapLocation loc : spawnLocs) {
                         if (rc.canSpawn(loc)) {
                             rc.spawn(loc);
-                            trapSpawn();
                             swarmTarget = new MapLocation(-1, -1);
                             if (round == 1) {
                                 shuffle();
@@ -717,14 +716,13 @@ public strictfp class RobotPlayer {
                         }
                     }
                 } else if (round <= 150){
-                    for (int i=40; i<43; i++){
-                        if (rc.getID() != ids[i]+9999) continue;
-                        if (rc.getLocation() != spawnCentres[i-40]){
-                            System.out.println(rc.getLocation() + " " +spawnCentres[i-40]);
-                            moveBetter(spawnCentres[i-40]);
-                            rc.setIndicatorLine(rc.getLocation(), spawnCentres[i-40], 0, 0, 255);
+                    if (builders[rc.getID()-9999] != 0){
+                        if (!rc.getLocation().equals(spawnCentres[builders[rc.getID()-9999]-40])){
+                            moveBetter(spawnCentres[builders[rc.getID()-9999]-40]);
+                            rc.setIndicatorLine(rc.getLocation(), spawnCentres[builders[rc.getID()-9999]-40], 0, 0, 255);
                         }
-                        trapSpawn();
+                        if (rc.getLocation().equals(spawnCentres[builders[rc.getID()-9999]-40])) trapSpawn();
+                        continue;
                     }
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     MapLocation nextLoc;
@@ -747,14 +745,13 @@ public strictfp class RobotPlayer {
                 }  else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
-                    for (int i=40; i<43; i++){
-                        if (rc.getID() != ids[i]+9999) continue;
-                        if (rc.getLocation() != spawnCentres[i-40]){
-                            System.out.println(rc.getLocation() + " " +spawnCentres[i-40]);
-                            moveBetter(spawnCentres[i-40]);
-                            rc.setIndicatorLine(rc.getLocation(), spawnCentres[i-40], 0, 0, 255);
+                    if (builders[rc.getID()-9999] != 0){
+                        if (!rc.getLocation().equals(spawnCentres[builders[rc.getID()-9999]-40])){
+                            moveBetter(spawnCentres[builders[rc.getID()-9999]-40]);
+                            rc.setIndicatorLine(rc.getLocation(), spawnCentres[builders[rc.getID()-9999]-40], 0, 0, 255);
                         }
-                        trapSpawn();
+                        if (rc.getLocation().equals(spawnCentres[builders[rc.getID()-9999]-40])) trapSpawn();
+                        continue;
                     }
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     pickupFlag(true);
