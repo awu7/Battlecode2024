@@ -636,14 +636,17 @@ public strictfp class RobotPlayer {
                     // Determine whether to move or not
                     int nearbyHP = rc.getHealth();
                     for (RobotInfo ally : nearbyAllies) {
-                        nearbyHP+=ally.health;
+                        nearbyHP += ally.health;
                     }
-                    nearbyHP /= (nearbyAllies.length+1);
-                    int threshold = min(nearbyAllies.length*75, 751);
+                    int threshold = min(nearbyAllies.length*75, 751) * (nearbyAllies.length + 1);
+                    int enemyHP = 0;
+                    RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+                    for(RobotInfo enemy : enemies) {
+                        enemyHP += enemy.health;
+                    }
                     // Movement
                     {
-                        RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                        if (enemies.length * 3 > nearbyAllies.length * 2
+                        if (enemyHP * 3 > nearbyHP * 2
                             && !rc.hasFlag()
                             && rc.senseNearbyFlags(9, rc.getTeam().opponent()).length == 0
                             && rc.senseNearbyFlags(4, rc.getTeam()).length == 0) {
@@ -709,7 +712,7 @@ public strictfp class RobotPlayer {
                                     rc.move(choice);
                                 }
                             }
-                        } else if (nearbyHP >= threshold) {
+                        } else if (nearbyHP >= threshold || rc.senseNearbyFlags(13, rc.getTeam().opponent()).length > 0) {
                             moveBetter(targetCell);
                             rc.setIndicatorString("Nope, not kiting");
                         }
