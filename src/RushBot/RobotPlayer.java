@@ -130,7 +130,8 @@ public strictfp class RobotPlayer {
     }
 
     static void moveBetter(MapLocation pos) throws GameActionException {
-        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(8) == 0)) {
+        if(stackSize != 0 && (!rc.getLocation().directionTo(pos).equals(stack[0]) || rng.nextInt(16) == 0)) {
+            debug("Stack reset");
             stackSize = 0;
         }
         if(stackSize == 0) {
@@ -146,7 +147,7 @@ public strictfp class RobotPlayer {
         MapLocation nextLoc;
         RobotInfo nextLocRobot;
         boolean triedOtherDir = false;
-        boolean hasFlag = rc.hasFlag();
+        boolean hasFlag = rc.hasFlag() || rc.canPickupFlag(rc.getLocation());
         while(stackSize < 8) {
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
             if(rc.onTheMap(nextLoc)) {
@@ -160,6 +161,12 @@ public strictfp class RobotPlayer {
                     if (rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !hasFlag)) {
                         break;
                     }
+                }
+                nextLocRobot = rc.senseRobotAtLocation(nextLoc);
+                // otherwise, if we have the flag and the square we're trying to move to is obstructed by a friend
+                if (hasFlag && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
+                    debug("Passing bread to a friend!");
+                    break;
                 }
             } else {
                 // reset if hugging wall, try other turn dir
@@ -182,8 +189,14 @@ public strictfp class RobotPlayer {
             rc.fill(nextLoc);
         }
         if(rc.canMove(dir)) {
-            if (rc.canMove(dir)) {
-                rc.move(dir);
+            rc.move(dir);
+        }
+        nextLoc = rc.getLocation().add(dir);
+        if(rc.onTheMap(nextLoc)) {
+            nextLocRobot = rc.senseRobotAtLocation(nextLoc);
+            if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
+                rc.dropFlag(nextLoc);
+                writeStack();
             }
         }
     }
@@ -835,8 +848,6 @@ public strictfp class RobotPlayer {
                 }
                 debug("TD: " + String.valueOf(turnDir));
                 debug("SS: " + String.valueOf(stackSize));
-                debug("MC: " + String.valueOf(rc.getMovementCooldownTurns()));
-                debug("AC: " + String.valueOf(rc.getActionCooldownTurns()));
                 rc.setIndicatorString(indicatorString);
                 indicatorString = "";
                 Clock.yield();
