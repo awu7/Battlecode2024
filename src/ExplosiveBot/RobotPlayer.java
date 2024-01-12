@@ -1,34 +1,15 @@
-package RushBot;
+package ExplosiveBot;
 
 import battlecode.common.*;
 import battlecode.world.Flag;
 import battlecode.world.Trap;
 
-//import java.awt.*;
-import java.lang.System;
+import java.awt.*;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.IntFunction;
 import java.util.function.ToIntBiFunction;
-class ActiveStun {
-    public MapLocation location = null;
-    public int roundsLeft;
-    public ActiveStun(MapLocation locIn) {
-        location = locIn;
-        roundsLeft = 4;
-    }
-    /**
-     * Returns false if this stun is ineffective after updating,
-     * otherwise true
-     */
-    public boolean updateRound() {
-        roundsLeft--;
-        if (roundsLeft <= 0) {
-            return false;
-        }
-        return true;
-    }
-}
+
 public strictfp class RobotPlayer {
     static RobotController rc;
     static Random rng;
@@ -58,43 +39,6 @@ public strictfp class RobotPlayer {
     static MapLocation target;
     static int team = 0;
     static int round;
-    /**
-     * Array of all previous stuns
-     */
-    static List<MapLocation> prevStuns = new ArrayList<MapLocation>();
-    static List<ActiveStun> activeStuns = new ArrayList<ActiveStun>();
-    static void updateStuns() throws GameActionException {
-        List<MapLocation> currStuns = new ArrayList<MapLocation>();
-        MapInfo[] mapInfos = rc.senseNearbyMapInfos(-1);
-        for (MapInfo mi : mapInfos) {
-            if (mi.getTrapType() == TrapType.STUN) {
-                currStuns.add(mi.getMapLocation());
-            }
-        }
-        for (MapLocation ml : prevStuns) {
-            if (ml.distanceSquaredTo(rc.getLocation()) < 20) {
-                boolean triggered = true;
-                for (MapLocation ml2 : currStuns) {
-                    if (ml2.equals(ml)) {
-                        triggered = false;
-                        break;
-                    }
-                }
-                if (triggered) {
-                    activeStuns.add(new ActiveStun(ml));
-                }
-            }
-        }
-        prevStuns = currStuns;
-        debug("currStuns: " + currStuns.size());
-        List<ActiveStun> newActiveStuns = new ArrayList<ActiveStun>();
-        for (ActiveStun stun : activeStuns) {
-            if (stun.updateRound()) {
-                newActiveStuns.add(stun);
-            }
-        }
-        activeStuns = newActiveStuns;
-    }
 
     /**
      * ID compression system.
@@ -352,8 +296,7 @@ public strictfp class RobotPlayer {
     }
     static void attack() throws GameActionException {
         RobotInfo[] possibleEnemies = rc.senseNearbyRobots(4, rc.getTeam().opponent());
-        // prioritise flag carriers, then sitting ducks, tiebreak by lowest hp
-        // todo implement prioritise sitting ducks
+        // prioritise flag carriers, tiebreak by lowest hp
         if (possibleEnemies.length >= 1) { // Check if there are enemies in range
             RobotInfo attackTarget = possibleEnemies[0];
             for(RobotInfo enemy : possibleEnemies) {
@@ -464,12 +407,12 @@ public strictfp class RobotPlayer {
             }
             for(Direction d : Direction.values()) {
                 boolean adjTrap = false;
-                TrapType chosenTrap = TrapType.STUN;
+                TrapType chosenTrap = TrapType.EXPLOSIVE;
                 /*if (rng.nextBoolean()) {
                     chosenTrap = TrapType.EXPLOSIVE;
                 }*/
                 for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 4)) {
-                    if(m.getTrapType() == TrapType.STUN) adjTrap = true;
+                    if(m.getTrapType() == TrapType.EXPLOSIVE) adjTrap = true;
                 }
                 int chanceReciprocal = 5*max(min(max(10 - (3 * visibleEnemies.length), 2), 2+nearbyTraps*2), 21 - 3*min(distFromEdge(rc.getLocation()), 7));
                 if(!adjTrap && rc.canBuild(chosenTrap, rc.getLocation().add(d)) && rng.nextInt(chanceReciprocal) == 0) {
@@ -841,8 +784,6 @@ public strictfp class RobotPlayer {
                     }
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     pickupFlag(true);
-                    // Find all triggered stun traps;
-                    updateStuns();
                     targetCell = findTarget();
                     if(rc.senseNearbyFlags(0).length == 0) {
                         healFlagBearer();
@@ -855,35 +796,16 @@ public strictfp class RobotPlayer {
                     }
                     int threshold = min(nearbyAllies.length * 75, 751) * (nearbyAllies.length + 1);
                     int enemyHP = 0;
-                    RobotInfo[] rawEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-                    List<RobotInfo> listEnemies = new ArrayList<RobotInfo>();
-                    // sittingDucks contains all stunned enemies
-                    List<RobotInfo> listSittingDucks = new ArrayList<RobotInfo>();
-                    for(RobotInfo enemy : rawEnemies) {
-                        boolean skip = false;
-                        for (ActiveStun stun : activeStuns) {
-                            if (enemy.getLocation().distanceSquaredTo(stun.location) <= 13) {
-                                skip = true;
-                                break;
-                            }
-                        }
-                        if (skip) {
-                            listSittingDucks.add(enemy);
-                            rc.setIndicatorDot(enemy.getLocation(), 255, 255, 0);
-                            continue;
-                        }
+                    RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+                    for(RobotInfo enemy : enemies) {
                         enemyHP += enemy.health;
-                        listEnemies.add(enemy);
                     }
-                    RobotInfo[] enemies = listEnemies.toArray(new RobotInfo[0]);
-                    RobotInfo[] sittingDucks = listSittingDucks.toArray(new RobotInfo[0]);
                     // Movement
                     {
                         if (enemyHP * 5 > nearbyHP * 2
                                 && !rc.hasFlag()
                                 && rc.senseNearbyFlags(9, rc.getTeam().opponent()).length == 0
-                                && rc.senseNearbyFlags(4, rc.getTeam()).length == 0
-                                && sittingDucks.length <= 0) {
+                                && rc.senseNearbyFlags(4, rc.getTeam()).length == 0) {
                             // Begin Kiting
                             int currTargeted = 0;
                             Direction[] choices = new Direction[8];
@@ -948,44 +870,9 @@ public strictfp class RobotPlayer {
                                     rc.move(choice);
                                 } else if (returnToCombat) {
                                     // Attempt to move towards enemies
-                                    if (sittingDucks.length > 0) {
-                                        rc.setIndicatorLine(rc.getLocation(), sittingDucks[0].getLocation(), 255, 0, 0);
-                                        //System.out.println("Moving towards a sitting duck");
-                                        moveBetter(sittingDucks[0].getLocation());
-                                    } else {
-                                        moveBetter(enemies[0].getLocation());
-                                    }
+                                    moveBetter(enemies[0].getLocation());
                                 }
                             }
-                        } else if (sittingDucks.length > 0) {
-                            int minDistSquared = 100;
-                            MapLocation[] choices = new MapLocation[sittingDucks.length];
-                            int n = 0;
-                            for (RobotInfo enemy : sittingDucks) {
-                                int distToEnemy = enemy.getLocation().distanceSquaredTo(rc.getLocation());
-                                if (distToEnemy < minDistSquared) {
-                                    minDistSquared = distToEnemy;
-                                    n = 0;
-                                }
-                                if (distToEnemy == minDistSquared) {
-                                    choices[n++] = enemy.getLocation();
-                                }
-                            }
-                            MapLocation bestChoice = choices[0];
-                            if (targetCell != null) {
-                                int shortestDist = -1;
-                                for (int i = 0; i < n; ++i) {
-                                    MapLocation choice = choices[i];
-                                    int distToTarget = choice.distanceSquaredTo(targetCell);
-                                    if (shortestDist == -1 || distToTarget < shortestDist) {
-                                        shortestDist = distToTarget;
-                                        bestChoice = choice;
-                                    }
-                                }
-                            }
-                            rc.setIndicatorLine(rc.getLocation(), bestChoice, 255, 0, 0);
-                            //System.out.println("Moving towards a sitting duck");
-                            moveBetter(bestChoice);
                         } else if (nearbyHP >= threshold || rc.senseNearbyFlags(13, rc.getTeam().opponent()).length == 0) {
                             moveBetter(targetCell);
                             debug(targetCell);
