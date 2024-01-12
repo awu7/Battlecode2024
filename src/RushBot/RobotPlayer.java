@@ -91,7 +91,7 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * Helper function to check if a friend can pickup a flag dropped in a direction.
+     * Helper function to check if a friend can pick up a flag dropped in a direction.
      * @param dir the direction to drop the flag.
      * @return
      */
@@ -392,7 +392,7 @@ public strictfp class RobotPlayer {
         }
         if(!ok) return;
         if(rc.getCrumbs() >= 200 && rc.getRoundNum() >= 200) {
-            TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.EXPLOSIVE, TrapType.STUN}[rng.nextInt(2)];
+            TrapType randTrap = new TrapType[]{TrapType.EXPLOSIVE, TrapType.STUN, TrapType.STUN, TrapType.STUN}[rng.nextInt(2)];
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
             if (rc.canBuild(randTrap, rc.getLocation()) && rng.nextInt(max(100 - (30*visibleEnemies.length), 3)) == 0) {
                 rc.build(randTrap, rc.getLocation());
@@ -425,13 +425,16 @@ public strictfp class RobotPlayer {
         if (rc.senseNearbyFlags(-1, rc.getTeam()).length > 0) {
             for (MapInfo info : rc.senseNearbyMapInfos()) {
                 if (info.isSpawnZone()) {
-                    if (isCentreSpawn(info.getMapLocation())) {
-                        if (rc.canBuild(TrapType.STUN, info.getMapLocation())) {
-                            rc.build(TrapType.STUN, info.getMapLocation());
-                        }
-                    } else {
-                        if (rc.canBuild(TrapType.EXPLOSIVE, info.getMapLocation())) {
-                            rc.build(TrapType.EXPLOSIVE, info.getMapLocation());
+                    for (int i=38; i<43; i++){
+                        if (rc.getID() != ids[i]+9999) continue;
+                        if (isCentreSpawn(info.getMapLocation())) {
+                            if (rc.canBuild(TrapType.STUN, info.getMapLocation())) {
+                                rc.build(TrapType.STUN, info.getMapLocation());
+                            }
+                        } else {
+                            if (rc.canBuild(TrapType.WATER, info.getMapLocation())) {
+                                rc.build(TrapType.WATER, info.getMapLocation());
+                            }
                         }
                     }
                 }
@@ -718,7 +721,20 @@ public strictfp class RobotPlayer {
                             break;
                         }
                     }
-                } else if (round <= 150) {
+                } else if (round <= 150){
+                    for (int i=38; i<43; i++){
+                        if (rc.getID() != ids[i]+9999) continue;
+                        for (Direction dir : directions){
+                            if (rng.nextInt(4) == 1) continue;
+                            if (rc.canMove(dir)) {
+                                MapLocation next = rc.getLocation().add(dir);
+                                if (rc.senseMapInfo(next).isSpawnZone()){
+                                    rc.move(dir);
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     trapSpawn();
                     MapLocation nextLoc;
@@ -741,6 +757,19 @@ public strictfp class RobotPlayer {
                 }  else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
+                    for (int i=38; i<43; i++){
+                        if (rc.getID() != ids[i]+9999) continue;
+                        for (Direction dir : directions){
+                            if (rng.nextInt(4) == 1) continue;
+                            if (rc.canMove(dir)) {
+                                MapLocation next = rc.getLocation().add(dir);
+                                if (rc.senseMapInfo(next).isSpawnZone()){
+                                    rc.move(dir);
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     pickupFlag(true);
                     targetCell = findTarget();
