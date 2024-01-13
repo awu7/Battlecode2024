@@ -1,15 +1,10 @@
 package RushBot;
 
 import battlecode.common.*;
-import battlecode.world.Flag;
-import battlecode.world.Trap;
 
-//import java.awt.*;
 import java.lang.System;
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.IntFunction;
-import java.util.function.ToIntBiFunction;
+
 class ActiveStun {
     public MapLocation location = null;
     public int roundsLeft;
@@ -29,6 +24,7 @@ class ActiveStun {
         return true;
     }
 }
+
 public strictfp class RobotPlayer {
     static RobotController rc;
     static Random rng;
@@ -47,10 +43,7 @@ public strictfp class RobotPlayer {
             Direction.NORTHEAST,
             Direction.WEST,
     };
-    static String indicatorString = "";
-    static <T> void debug(T x) {
-        indicatorString += String.valueOf(x) + "; ";
-    }
+
     static MapLocation centre;
     static MapLocation[] spawnCentres = new MapLocation[3];
     static int isBuilder = 0;
@@ -96,6 +89,8 @@ public strictfp class RobotPlayer {
         activeStuns = newActiveStuns;
     }
 
+    static String indicatorString = "";
+
     /**
      * ID compression system.
      * Each robot starts with an ID, theoretically in the range [10000, 14096).
@@ -106,7 +101,8 @@ public strictfp class RobotPlayer {
     static int[] ids = new int[50];
     static int[] idx = new int[10000];
     /**
-     * 0 = BFS bot, receives information from other bots and runs a BFS in idle turns.
+     * [2, 31] = scouters, broadcasts everything seen in allocated spot in array.
+     * 49 = BFS bot, receives information from other bots and runs a BFS in idle turns.
      */
     static int selfIdx = -1;
 
@@ -115,21 +111,25 @@ public strictfp class RobotPlayer {
     static int turnDir = 0;
     static RobotInfo[] nearbyAllies;
 
-    // 2d array storing the board
-    // 0 = undiscovered
-    // 1 = empty passable tile
-    // 2 = wall
-    // 3 = our spawn zone
-    // 4 = opponent's spawn zone
-    // 5 = dam
+    /**
+     * 2d array storing the board
+     * 0 = undiscovered
+     * 1 = empty passable tile
+     * 2 = wall
+     * 3 = our spawn zone
+     * 4 = opponent's spawn zone
+     */
     static int[][] board;
+    /**
+     * 2d array storing a simplified version of the board with weights, used for BFS.
+     */
+    static int[][] weight;
     static boolean vertical = true, horizontal = true, rotational = true;
     public enum Symmetry {
         UNKNOWN("Unknown"),
         VERTICAL("Vertical"),
         HORIZONTAL("Horizontal"),
-        ROTATIONAL("Rotational"),
-        ALL("All");
+        ROTATIONAL("Rotational");
 
         public final String label;
 
@@ -138,18 +138,29 @@ public strictfp class RobotPlayer {
         }
     }
     static Symmetry symmetry = Symmetry.UNKNOWN;
+    static int width, height;
+    static int widthMinus1, widthMinus2, widthMinus3;
+    static int heightMinus1,heightMinus2, heightMinus3;
 
-    static int max(int a, int b) {
-        if (a > b) {
-            return a;
-        }
-        return b;
+    static StringBuilder q;
+    static int[][] bfs;
+    static int[][] optimal;
+
+    /**
+     * Helper function to append to the bot's indicator string.
+     * @param x the value to append.
+     * @param <T> the type of the value.
+     */
+    static <T> void debug(T x) {
+        indicatorString += String.valueOf(x) + "; ";
     }
-    static int min(int a, int b) {
-        if (a < b) {
-            return a;
-        }
-        return b;
+
+    public static MapLocation unhashChar(char c) {
+        return new MapLocation(c / height, c % height);
+    }
+
+    public static char hashLoc(MapLocation loc) {
+        return (char) (loc.x * height + loc.y);
     }
 
     /**
@@ -159,7 +170,7 @@ public strictfp class RobotPlayer {
      * @return The smallest distance to the edge of the map
      */
     static int distFromEdge(MapLocation loc) {
-        return min(min(loc.x, rc.getMapWidth()-loc.x), min(loc.y, rc.getMapHeight()-loc.y));
+        return StrictMath.min(StrictMath.min(loc.x, rc.getMapWidth() - loc.x), StrictMath.min(loc.y, rc.getMapHeight() - loc.y));
     }
 
     /**
@@ -335,7 +346,7 @@ public strictfp class RobotPlayer {
         }
         if(swarmLeader != 0) {
             swarmTarget = new MapLocation(rc.readSharedArray(1), rc.readSharedArray(2));
-            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth()) / 2;
+            swarmEnd = rc.getRoundNum() + StrictMath.max(height, width) / 2;
         }
         if(swarmEnd < rc.getRoundNum()) swarmTarget = new MapLocation(-1, -1);
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
@@ -343,7 +354,7 @@ public strictfp class RobotPlayer {
         MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
         if(possibleSenses.length > 0) {
             swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
-            swarmEnd = rc.getRoundNum() + max(rc.getMapHeight(), rc.getMapWidth()) / 2;
+            swarmEnd = rc.getRoundNum() + StrictMath.max(height, width) / 2;
             return swarmTarget;
         }
         MapLocation[] possibleCrumbs = rc.senseNearbyCrumbs(-1);
@@ -471,7 +482,7 @@ public strictfp class RobotPlayer {
                 for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 4)) {
                     if(m.getTrapType() == TrapType.STUN) adjTrap = true;
                 }
-                int chanceReciprocal = 5*max(min(max(10 - (3 * visibleEnemies.length), 2), 2+nearbyTraps*2), 21 - 3*min(distFromEdge(rc.getLocation()), 7));
+                int chanceReciprocal = 5 * StrictMath.max(StrictMath.min(StrictMath.max(10 - (3 * visibleEnemies.length), 2), 2+nearbyTraps*2), 21 - 3 * StrictMath.min(distFromEdge(rc.getLocation()), 7));
                 if(!adjTrap && rc.canBuild(chosenTrap, rc.getLocation().add(d)) && rng.nextInt(chanceReciprocal) == 0) {
                     rc.build(chosenTrap, rc.getLocation().add(d));
                 }
@@ -531,9 +542,9 @@ public strictfp class RobotPlayer {
     }
 
     static void printBoard() {
-        for (int y = rc.getMapHeight() - 1; y >= 0; --y) {
+        for (int y = height - 1; y >= 0; --y) {
             StringBuilder row = new StringBuilder();
-            for (int x = 0; x < rc.getMapWidth(); ++x) {
+            for (int x = 0; x < width; ++x) {
                 row.append(board[x][y]);
             }
             System.out.println(row);
@@ -562,14 +573,14 @@ public strictfp class RobotPlayer {
      * @param y the y coordinate
      */
     static void updateCellSymmetry(int x, int y) {
-        if (symmetry == Symmetry.HORIZONTAL || symmetry == Symmetry.ALL) {
-            board[rc.getMapWidth() - 1 - x][y] = board[x][y];
+        if (symmetry == Symmetry.HORIZONTAL) {
+            board[width - 1 - x][y] = board[x][y];
         }
-        if (symmetry == Symmetry.VERTICAL || symmetry == Symmetry.ALL) {
-            board[x][rc.getMapHeight() - 1 - y] = board[x][y];
+        if (symmetry == Symmetry.VERTICAL) {
+            board[x][height - 1 - y] = board[x][y];
         }
-        if (symmetry == Symmetry.ROTATIONAL || symmetry == Symmetry.ALL) {
-            board[rc.getMapWidth() - 1 - x][rc.getMapHeight() - 1 - y] = board[x][y];
+        if (symmetry == Symmetry.ROTATIONAL) {
+            board[width - 1 - x][height - 1 - y] = board[x][y];
         }
     }
 
@@ -595,7 +606,7 @@ public strictfp class RobotPlayer {
                 }
 
                 if (symmetry == Symmetry.UNKNOWN) {
-                    int ver = board[x][rc.getMapHeight() - 1 - y];
+                    int ver = board[x][height - 1 - y];
                     if (!sameTile(board[x][y], ver)) {
                         vertical = false;
                         if (!horizontal) {
@@ -606,7 +617,7 @@ public strictfp class RobotPlayer {
                             System.out.println(symmetry.label);
                         }
                     }
-                    int hor = board[rc.getMapWidth() - 1 - x][y];
+                    int hor = board[width - 1 - x][y];
                     if (!sameTile(board[x][y], hor)) {
                         horizontal = false;
                         if (!vertical) {
@@ -617,7 +628,7 @@ public strictfp class RobotPlayer {
                             System.out.println(symmetry.label);
                         }
                     }
-                    int rot = board[rc.getMapWidth() - 1 - x][rc.getMapHeight() - 1 - y];
+                    int rot = board[width - 1 - x][height - 1 - y];
                     if (!sameTile(board[x][y], rot)) {
                         rotational = false;
                         if (!horizontal) {
@@ -637,7 +648,7 @@ public strictfp class RobotPlayer {
 
     public static void broadcastVision(int arrayIdx) throws GameActionException {
         int x = rc.getLocation().x, y = rc.getLocation().y;
-        int hash1 = x * rc.getMapHeight() + y, hash2 = 0;
+        int hash1 = x * height + y, hash2 = 0;
         rc.writeSharedArray(arrayIdx, hash1);
         MapLocation loc;
         if(rc.onTheMap(loc = rc.getLocation().translate(-2, 3)) && rc.senseMapInfo(loc).isWall()) hash2 |= 1;
@@ -667,40 +678,132 @@ public strictfp class RobotPlayer {
     public static void decodeBroadcast(int arrIdx) throws GameActionException {
         int hash1 = rc.readSharedArray(arrIdx), hash2 = rc.readSharedArray(arrIdx | 1);
         int locHash = hash1 & ((1 << 12) - 1);
-        int x = locHash / rc.getMapHeight(), y = locHash % rc.getMapHeight();
-        if(rc.onTheMap(new MapLocation(x - 2, y + 3))) board[x - 2][y + 3] = (hash2 >>> 0) & 1;
-        if(rc.onTheMap(new MapLocation(x - 1, y + 3))) board[x - 1][y + 3] = (hash2 >>> 1) & 1;
-        if(rc.onTheMap(new MapLocation(x + 0, y + 3))) board[x + 0][y + 3] = (hash2 >>> 2) & 1;
-        if(rc.onTheMap(new MapLocation(x + 1, y + 3))) board[x + 1][y + 3] = (hash2 >>> 3) & 1;
-        if(rc.onTheMap(new MapLocation(x + 2, y + 3))) board[x + 2][y + 3] = (hash2 >>> 4) & 1;
-        if(rc.onTheMap(new MapLocation(x + 3, y + 2))) board[x + 3][y + 2] = (hash2 >>> 5) & 1;
-        if(rc.onTheMap(new MapLocation(x + 3, y + 1))) board[x + 3][y + 1] = (hash2 >>> 6) & 1;
-        if(rc.onTheMap(new MapLocation(x + 3, y + 0))) board[x + 3][y + 0] = (hash2 >>> 7) & 1;
-        if(rc.onTheMap(new MapLocation(x + 3, y - 1))) board[x + 3][y - 1] = (hash2 >>> 8) & 1;
-        if(rc.onTheMap(new MapLocation(x + 3, y - 2))) board[x + 3][y - 2] = (hash2 >>> 9) & 1;
-        if(rc.onTheMap(new MapLocation(x + 2, y - 3))) board[x + 2][y - 3] = (hash2 >>> 10) & 1;
-        if(rc.onTheMap(new MapLocation(x + 1, y - 3))) board[x + 1][y - 3] = (hash2 >>> 11) & 1;
-        if(rc.onTheMap(new MapLocation(x + 0, y - 3))) board[x + 0][y - 3] = (hash2 >>> 12) & 1;
-        if(rc.onTheMap(new MapLocation(x - 1, y - 3))) board[x - 1][y - 3] = (hash2 >>> 13) & 1;
-        if(rc.onTheMap(new MapLocation(x - 2, y - 3))) board[x - 2][y - 3] = (hash2 >>> 14) & 1;
-        if(rc.onTheMap(new MapLocation(x - 3, y - 2))) board[x - 3][y - 2] = (hash2 >>> 15) & 1;
-        if(rc.onTheMap(new MapLocation(x - 3, y - 1))) board[x - 3][y - 1] = (hash1 >>> 12) & 1;
-        if(rc.onTheMap(new MapLocation(x - 3, y + 0))) board[x - 3][y + 0] = (hash1 >>> 13) & 1;
-        if(rc.onTheMap(new MapLocation(x - 3, y + 1))) board[x - 3][y + 1] = (hash1 >>> 14) & 1;
-        if(rc.onTheMap(new MapLocation(x - 3, y + 2))) board[x - 3][y + 2] = (hash1 >>> 15) & 1;
+        int x = locHash / height, y = locHash % height;
+        if (symmetry == Symmetry.VERTICAL) {
+            if (x >= 2 && y < heightMinus3) board[x - 2][heightMinus1 - (y + 3)] = board[x - 2][y + 3] = hash2 & 1;
+            if (x >= 1 && y < heightMinus3) board[x - 1][heightMinus1 - (y + 3)] = board[x - 1][y + 3] = (hash2 >>> 1) & 1;
+            if (x >= 0 && y < heightMinus3) board[x][heightMinus1 - (y + 3)] = board[x][y + 3] = (hash2 >>> 2) & 1;
+            if (x < widthMinus1 && y < heightMinus3) board[x + 1][heightMinus1 - (y + 3)] = board[x + 1][y + 3] = (hash2 >>> 3) & 1;
+            if (x < widthMinus2 && y < heightMinus3) board[x + 2][heightMinus1 - (y + 3)] = board[x + 2][y + 3] = (hash2 >>> 4) & 1;
+            if (x < widthMinus3 && y < heightMinus2) board[x + 3][heightMinus1 - (y + 2)] = board[x + 3][y + 2] = (hash2 >>> 5) & 1;
+            if (x < widthMinus3 && y < heightMinus1) board[x + 3][heightMinus1 - (y + 1)] = board[x + 3][y + 1] = (hash2 >>> 6) & 1;
+            if (x < widthMinus3) board[x + 3][heightMinus1 - (y)] = board[x + 3][y] = (hash2 >>> 7) & 1;
+            if (x < widthMinus3 && y >= 1) board[x + 3][heightMinus1 - (y - 1)] = board[x + 3][y - 1] = (hash2 >>> 8) & 1;
+            if (x < widthMinus3 && y >= 2) board[x + 3][heightMinus1 - (y - 2)] = board[x + 3][y - 2] = (hash2 >>> 9) & 1;
+            if (x < widthMinus2 && y >= 3) board[x + 2][heightMinus1 - (y - 3)] = board[x + 2][y - 3] = (hash2 >>> 10) & 1;
+            if (x < widthMinus1 && y >= 3) board[x + 1][heightMinus1 - (y - 3)] = board[x + 1][y - 3] = (hash2 >>> 11) & 1;
+            if (x >= 0 && y >= 3) board[x][heightMinus1 - (y - 3)] = board[x][y - 3] = (hash2 >>> 12) & 1;
+            if (x >= 1 && y >= 3) board[x - 1][heightMinus1 - (y - 3)] = board[x - 1][y - 3] = (hash2 >>> 13) & 1;
+            if (x >= 2 && y >= 3) board[x - 2][heightMinus1 - (y - 3)] = board[x - 2][y - 3] = (hash2 >>> 14) & 1;
+            if (x >= 3 && y >= 2) board[x - 3][heightMinus1 - (y - 2)] = board[x - 3][y - 2] = (hash2 >>> 15) & 1;
+            if (x >= 3 && y >= 1) board[x - 3][heightMinus1 - (y - 1)] = board[x - 3][y - 1] = (hash1 >>> 12) & 1;
+            if (x >= 3) board[x - 3][heightMinus1 - (y)] = board[x - 3][y] = (hash1 >>> 13) & 1;
+            if (x >= 3 && y < heightMinus1) board[x - 3][heightMinus1 - (y + 1)] = board[x - 3][y + 1] = (hash1 >>> 14) & 1;
+            if (x >= 3 && y < heightMinus2) board[x - 3][heightMinus1 - (y + 2)] = board[x - 3][y + 2] = (hash1 >>> 15) & 1;
+        } else if (symmetry == Symmetry.HORIZONTAL) {
+            if (x >= 2 && y < heightMinus3) board[widthMinus1 - (x - 2)][y + 3] = board[x - 2][y + 3] = hash2 & 1;
+            if (x >= 1 && y < heightMinus3) board[widthMinus1 - (x - 1)][y + 3] = board[x - 1][y + 3] = (hash2 >>> 1) & 1;
+            if (x >= 0 && y < heightMinus3) board[widthMinus1 - (x)][y + 3] = board[x][y + 3] = (hash2 >>> 2) & 1;
+            if (x < widthMinus1 && y < heightMinus3) board[widthMinus1 - (x + 1)][y + 3] = board[x + 1][y + 3] = (hash2 >>> 3) & 1;
+            if (x < widthMinus2 && y < heightMinus3) board[widthMinus1 - (x + 2)][y + 3] = board[x + 2][y + 3] = (hash2 >>> 4) & 1;
+            if (x < widthMinus3 && y < heightMinus2) board[widthMinus1 - (x + 3)][y + 2] = board[x + 3][y + 2] = (hash2 >>> 5) & 1;
+            if (x < widthMinus3 && y < heightMinus1) board[widthMinus1 - (x + 3)][y + 1] = board[x + 3][y + 1] = (hash2 >>> 6) & 1;
+            if (x < widthMinus3) board[widthMinus1 - (x + 3)][y] = board[x + 3][y] = (hash2 >>> 7) & 1;
+            if (x < widthMinus3 && y >= 1) board[widthMinus1 - (x + 3)][y - 1] = board[x + 3][y - 1] = (hash2 >>> 8) & 1;
+            if (x < widthMinus3 && y >= 2) board[widthMinus1 - (x + 3)][y - 2] = board[x + 3][y - 2] = (hash2 >>> 9) & 1;
+            if (x < widthMinus2 && y >= 3) board[widthMinus1 - (x + 2)][y - 3] = board[x + 2][y - 3] = (hash2 >>> 10) & 1;
+            if (x < widthMinus1 && y >= 3) board[widthMinus1 - (x + 1)][y - 3] = board[x + 1][y - 3] = (hash2 >>> 11) & 1;
+            if (x >= 0 && y >= 3) board[widthMinus1 - (x)][y - 3] = board[x][y - 3] = (hash2 >>> 12) & 1;
+            if (x >= 1 && y >= 3) board[widthMinus1 - (x - 1)][y - 3] = board[x - 1][y - 3] = (hash2 >>> 13) & 1;
+            if (x >= 2 && y >= 3) board[widthMinus1 - (x - 2)][y - 3] = board[x - 2][y - 3] = (hash2 >>> 14) & 1;
+            if (x >= 3 && y >= 2) board[widthMinus1 - (x - 3)][y - 2] = board[x - 3][y - 2] = (hash2 >>> 15) & 1;
+            if (x >= 3 && y >= 1) board[widthMinus1 - (x - 3)][y - 1] = board[x - 3][y - 1] = (hash1 >>> 12) & 1;
+            if (x >= 3) board[widthMinus1 - (x - 3)][y] = board[x - 3][y] = (hash1 >>> 13) & 1;
+            if (x >= 3 && y < heightMinus1) board[widthMinus1 - (x - 3)][y + 1] = board[x - 3][y + 1] = (hash1 >>> 14) & 1;
+            if (x >= 3 && y < heightMinus2) board[widthMinus1 - (x - 3)][y + 2] = board[x - 3][y + 2] = (hash1 >>> 15) & 1;
+        } else if (symmetry == Symmetry.ROTATIONAL) {
+            if (x >= 2 && y < heightMinus3) board[widthMinus1 - (x - 2)][heightMinus1 - (y + 3)] = board[x - 2][y + 3] = hash2 & 1;
+            if (x >= 1 && y < heightMinus3) board[widthMinus1 - (x - 1)][heightMinus1 - (y + 3)] = board[x - 1][y + 3] = (hash2 >>> 1) & 1;
+            if (x >= 0 && y < heightMinus3) board[widthMinus1 - (x)][heightMinus1 - (y + 3)] = board[x][y + 3] = (hash2 >>> 2) & 1;
+            if (x < widthMinus1 && y < heightMinus3) board[widthMinus1 - (x + 1)][heightMinus1 - (y + 3)] = board[x + 1][y + 3] = (hash2 >>> 3) & 1;
+            if (x < widthMinus2 && y < heightMinus3) board[widthMinus1 - (x + 2)][heightMinus1 - (y + 3)] = board[x + 2][y + 3] = (hash2 >>> 4) & 1;
+            if (x < widthMinus3 && y < heightMinus2) board[widthMinus1 - (x + 3)][heightMinus1 - (y + 2)] = board[x + 3][y + 2] = (hash2 >>> 5) & 1;
+            if (x < widthMinus3 && y < heightMinus1) board[widthMinus1 - (x + 3)][heightMinus1 - (y + 1)] = board[x + 3][y + 1] = (hash2 >>> 6) & 1;
+            if (x < widthMinus3) board[widthMinus1 - (x + 3)][heightMinus1 - (y)] = board[x + 3][y] = (hash2 >>> 7) & 1;
+            if (x < widthMinus3 && y >= 1) board[widthMinus1 - (x + 3)][heightMinus1 - (y - 1)] = board[x + 3][y - 1] = (hash2 >>> 8) & 1;
+            if (x < widthMinus3 && y >= 2) board[widthMinus1 - (x + 3)][heightMinus1 - (y - 2)] = board[x + 3][y - 2] = (hash2 >>> 9) & 1;
+            if (x < widthMinus2 && y >= 3) board[widthMinus1 - (x + 2)][heightMinus1 - (y - 3)] = board[x + 2][y - 3] = (hash2 >>> 10) & 1;
+            if (x < widthMinus1 && y >= 3) board[widthMinus1 - (x + 1)][heightMinus1 - (y - 3)] = board[x + 1][y - 3] = (hash2 >>> 11) & 1;
+            if (x >= 0 && y >= 3) board[widthMinus1 - (x)][heightMinus1 - (y - 3)] = board[x][y - 3] = (hash2 >>> 12) & 1;
+            if (x >= 1 && y >= 3) board[widthMinus1 - (x - 1)][heightMinus1 - (y - 3)] = board[x - 1][y - 3] = (hash2 >>> 13) & 1;
+            if (x >= 2 && y >= 3) board[widthMinus1 - (x - 2)][heightMinus1 - (y - 3)] = board[x - 2][y - 3] = (hash2 >>> 14) & 1;
+            if (x >= 3 && y >= 2) board[widthMinus1 - (x - 3)][heightMinus1 - (y - 2)] = board[x - 3][y - 2] = (hash2 >>> 15) & 1;
+            if (x >= 3 && y >= 1) board[widthMinus1 - (x - 3)][heightMinus1 - (y - 1)] = board[x - 3][y - 1] = (hash1 >>> 12) & 1;
+            if (x >= 3) board[widthMinus1 - (x - 3)][heightMinus1 - (y)] = board[x - 3][y] = (hash1 >>> 13) & 1;
+            if (x >= 3 && y < heightMinus1) board[widthMinus1 - (x - 3)][heightMinus1 - (y + 1)] = board[x - 3][y + 1] = (hash1 >>> 14) & 1;
+            if (x >= 3 && y < heightMinus2) board[widthMinus1 - (x - 3)][heightMinus1 - (y + 2)] = board[x - 3][y + 2] = (hash1 >>> 15) & 1;
+        } else {
+            if (x >= 2 && y < heightMinus3) board[x - 2][y + 3] = hash2 & 1;
+            if (x >= 1 && y < heightMinus3) board[x - 1][y + 3] = (hash2 >>> 1) & 1;
+            if (x >= 0 && y < heightMinus3) board[x][y + 3] = (hash2 >>> 2) & 1;
+            if (x < widthMinus1 && y < heightMinus3) board[x + 1][y + 3] = (hash2 >>> 3) & 1;
+            if (x < widthMinus2 && y < heightMinus3) board[x + 2][y + 3] = (hash2 >>> 4) & 1;
+            if (x < widthMinus3 && y < heightMinus2) board[x + 3][y + 2] = (hash2 >>> 5) & 1;
+            if (x < widthMinus3 && y < heightMinus1) board[x + 3][y + 1] = (hash2 >>> 6) & 1;
+            if (x < widthMinus3) board[x + 3][y] = (hash2 >>> 7) & 1;
+            if (x < widthMinus3 && y >= 1) board[x + 3][y - 1] = (hash2 >>> 8) & 1;
+            if (x < widthMinus3 && y >= 2) board[x + 3][y - 2] = (hash2 >>> 9) & 1;
+            if (x < widthMinus2 && y >= 3) board[x + 2][y - 3] = (hash2 >>> 10) & 1;
+            if (x < widthMinus1 && y >= 3) board[x + 1][y - 3] = (hash2 >>> 11) & 1;
+            if (x >= 0 && y >= 3) board[x][y - 3] = (hash2 >>> 12) & 1;
+            if (x >= 1 && y >= 3) board[x - 1][y - 3] = (hash2 >>> 13) & 1;
+            if (x >= 2 && y >= 3) board[x - 2][y - 3] = (hash2 >>> 14) & 1;
+            if (x >= 3 && y >= 2) board[x - 3][y - 2] = (hash2 >>> 15) & 1;
+            if (x >= 3 && y >= 1) board[x - 3][y - 1] = (hash1 >>> 12) & 1;
+            if (x >= 3) board[x - 3][y] = (hash1 >>> 13) & 1;
+            if (x >= 3 && y < heightMinus1) board[x - 3][y + 1] = (hash1 >>> 14) & 1;
+            if (x >= 3 && y < heightMinus2) board[x - 3][y + 2] = (hash1 >>> 15) & 1;
+        }
+    }
+
+    /**
+     * Helper function to broadcast the current discovered symmetry to the BFS bots.
+     * @param arrIdx the index at which the symmetry is written in the global array.
+     * @throws GameActionException
+     */
+    public static void broadcastSymmetry(int arrIdx) throws GameActionException {
+        int hash = 0;
+        if (vertical) hash |= 1;
+        if (horizontal) hash |= 1 << 1;
+        if (rotational) hash |= 1 << 2;
+    }
+
+    public static void decodeSymmetry(int arrIdx) throws GameActionException {
+        int hash = rc.readSharedArray(arrIdx);
+        if ((hash & 1) == 0) vertical = false;
+        if (((hash >>> 1) & 1) == 0) horizontal = false;
+        if (((hash >>> 2) & 1) == 0) rotational = false;
     }
 
     public static void run(RobotController _rc) throws GameActionException {
         rc = _rc;
         rng = new Random(rc.getID()+1);
         MapLocation targetCell = new MapLocation(-1, -1);
-        centre = new MapLocation(rc.getMapWidth() / 2, rc.getMapHeight() / 2);
+        width = rc.getMapWidth();
+        height = rc.getMapHeight();
+        widthMinus1 = width - 1;
+        widthMinus2 = width - 2;
+        widthMinus3 = width - 3;
+        heightMinus1 = height - 1;
+        heightMinus2 = height - 2;
+        heightMinus3 = height - 3;
+        centre = new MapLocation(width / 2, height / 2);
         if (rc.getTeam() == Team.A) {
             team = 1;
         } else {
             team = 2;
         }
-        board = new int[rc.getMapWidth()][rc.getMapHeight()];
+        board = new int[width][height];
         while (true) {
             try {
                 round = rc.getRoundNum();
@@ -738,41 +841,88 @@ public strictfp class RobotPlayer {
                     for (int i=40; i<43; i++){
                         if (ids[i]+9999 == rc.getID()) isBuilder = i;
                     }
-                }
-                if (rc.isSpawned()) {
-                    debug(idx[rc.getID()-9999]);
-                    if (selfIdx <= 0) {
-                        if (round >= 3 && round <= 150) {
-                            System.out.println(Clock.getBytecodeNum());
+                } else if (round >= 3 && round <= 160) {
+                    if (rc.isSpawned()) {
+                        if (selfIdx == 49) {
                             for (int i = 4; i < 64; i += 2) {
                                 decodeBroadcast(i);
                             }
-                            System.out.println(Clock.getBytecodeNum());
+                        } else {
+                            recordVision();
+                            if (selfIdx >= 2 && selfIdx <= 31) {
+                                broadcastVision(selfIdx << 1);
+                            }
                         }
-                        if (round == 201) {
-                            // for (int x = 0; x < rc.getMapWidth(); ++x) {
-                            //     for (int y = 0; y < rc.getMapHeight(); ++y) {
-                            //         if (board[x][y] == 5) {
-                            //             board[x][y] = 1;
-                            //         }
-                            //         if (Clock.getBytecodesLeft() < 4000) {
-                            //             Clock.yield();
-                            //         }
-                            //     }
-                            // }
-                            // Clock.yield();
-                            // continue;
-                            // printBoard();
+                    }
+                } else if (round == 161) {
+                    if (selfIdx <= 42) {
+                        // all robots broadcast their interpretation of the map's symmetry
+                        broadcastSymmetry(selfIdx + 21);
+                    } else {
+                        // receive symmetry broadcasts from other robots
+                        for (int i = 21; i < 64; ++i) {
+                            decodeSymmetry(i);
                         }
-                        // We are the scouting duck! Record all squares we see in the 2d array.
-                        //     recordVision();
-                        // if (justUpdated) {
-                        //     justUpdated = false;
-                        //     Clock.yield();
-                        //     continue;
-                        // }
-                    } else if (round >= 3 && round <= 150 && selfIdx >= 2 && selfIdx <= 31) {
-                        broadcastVision(selfIdx << 1);
+                    }
+                    if (selfIdx >= 43) {
+                        q = new StringBuilder();
+                        MapLocation loc = new MapLocation(1, 1);  // will use Aiden's centre spawns once pulled
+                        if (selfIdx == 43) {
+                            q.append(hashLoc(loc));
+                        } else if (selfIdx == 44) {
+                            q.append(hashLoc(loc));
+                        } else if (selfIdx == 45) {
+                            q.append(hashLoc(loc));
+                        } else if (selfIdx == 46) {
+                            q.append(hashLoc(loc));
+                        } else if (selfIdx == 47) {
+                            q.append(hashLoc(loc));
+                        } else if (selfIdx == 48) {
+                            q.append(hashLoc(loc));
+                        } else if (selfIdx == 49) {
+                            q.append(hashLoc(loc));
+                        }
+                        bfs = new int[width][height];
+                        optimal = new int[width][height];
+                        for (int x = 0; x < width; ++x) {
+                            UnrolledUtils.fill(bfs[x], -1);
+                        }
+                        continue;
+                    }
+                } else if (round == 162) {
+                    if (selfIdx >= 43) {
+                        for (int x = 0; x < width; ++x) {
+                            UnrolledUtils.fill(optimal[x], -1);
+                        }
+                        System.out.println(Clock.getBytecodesLeft());
+                    }
+                } else if (round >= 163) {
+                    if (selfIdx >= 43) {
+                        // BFS time baby!
+                        while (q.length() > 0) {
+                            MapLocation loc = unhashChar(q.charAt(0));
+                            q.deleteCharAt(0);
+                            int nextDist = board[loc.x][loc.y];
+                            for (int i = 0; i < 8; ++i) {
+                                MapLocation next = loc.add(directions[i]);
+                                int x = next.x, y = next.y;
+                                if (x >= 0 && x < width && y >= 0 && y < height) {
+                                    if (board[x][y] == 0 && bfs[x][y] == -1) {
+                                        bfs[x][y] = nextDist;
+                                        optimal[x][y] = i;
+                                        q.append(hashLoc(next));
+                                    }
+                                }
+                            }
+                            if (Clock.getBytecodesLeft() < 2000) {
+                                break;
+                            }
+                        }
+                        if (q.length() > 0) {
+                            continue;
+                        } else {
+                            System.out.println("BFS finished.");
+                        }
                     }
                 }
                 if (!rc.isSpawned()) {
@@ -821,8 +971,8 @@ public strictfp class RobotPlayer {
                         if(movesLeft > 0 && !rc.getLocation().equals(target)) {
                             movesLeft--;
                         } else {
-                            target = new MapLocation(Math.max(0, Math.min(rc.getMapWidth() - 1, rc.getLocation().x + rng.nextInt(21) - 10)),
-                                    Math.max(0, Math.min(rc.getMapHeight() - 1, rc.getLocation().y + rng.nextInt(21) - 10)));
+                            target = new MapLocation(StrictMath.max(0, StrictMath.min(width - 1, rc.getLocation().x + rng.nextInt(21) - 10)),
+                                    StrictMath.max(0, StrictMath.min(height - 1, rc.getLocation().y + rng.nextInt(21) - 10)));
                             movesLeft = 7;
                         }
                         nextLoc = target;
@@ -853,7 +1003,7 @@ public strictfp class RobotPlayer {
                     for (RobotInfo ally : nearbyAllies) {
                         nearbyHP += ally.health;
                     }
-                    int threshold = min(nearbyAllies.length * 75, 751) * (nearbyAllies.length + 1);
+                    int threshold = StrictMath.min(nearbyAllies.length * 75, 751) * (nearbyAllies.length + 1);
                     int enemyHP = 0;
                     RobotInfo[] rawEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
                     List<RobotInfo> listEnemies = new ArrayList<RobotInfo>();
