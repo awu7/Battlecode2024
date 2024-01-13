@@ -56,6 +56,7 @@ public strictfp class RobotPlayer {
      */
     static List<MapLocation> prevStuns = new ArrayList<MapLocation>();
     static List<ActiveStun> activeStuns = new ArrayList<ActiveStun>();
+    static RobotInfo[] sittingDucks;
     static void updateStuns() throws GameActionException {
         List<MapLocation> currStuns = new ArrayList<MapLocation>();
         MapInfo[] mapInfos = rc.senseNearbyMapInfos(-1);
@@ -364,14 +365,33 @@ public strictfp class RobotPlayer {
     static void attack() throws GameActionException {
         RobotInfo[] possibleEnemies = rc.senseNearbyRobots(4, rc.getTeam().opponent());
         // prioritise flag carriers, then sitting ducks, tiebreak by lowest hp
-        // todo implement prioritise sitting ducks
+        // todone: implement prioritise sitting ducks
+        // Not sure if it was done correctly but should be done
         if (possibleEnemies.length >= 1) { // Check if there are enemies in range
             RobotInfo attackTarget = possibleEnemies[0];
+            int currPriority = 0;
             for(RobotInfo enemy : possibleEnemies) {
+                boolean flagPriority = enemy.hasFlag;
+                boolean stunPriority = false;
+                for (RobotInfo stunned : sittingDucks) {
+                    if (stunned.ID == enemy.ID) {
+                        stunPriority = true;
+                        break;
+                    }
+                }
+                int totalPriority = (flagPriority?2:0)+(stunPriority?1:0);
+                // If target is of higher priority than current, retarget
+                // If target is of same priority as current, and has less health, retarget
+                if (totalPriority == 3) {
+                    totalPriority = 2;
+                } else if (totalPriority == 2) {
+                    totalPriority = 3;
+                }
                 if(rc.canAttack(enemy.getLocation())
-                        && (enemy.hasFlag() && !attackTarget.hasFlag()
-                        || (enemy.hasFlag() == attackTarget.hasFlag() && enemy.health < attackTarget.health))) {
+                        && (totalPriority > currPriority
+                        || (totalPriority == currPriority && enemy.health < attackTarget.health))) {
                     attackTarget = enemy;
+                    currPriority = totalPriority;
                 }
             }
             if(rc.canAttack(attackTarget.getLocation())) {
@@ -1026,7 +1046,7 @@ public strictfp class RobotPlayer {
                         listEnemies.add(enemy);
                     }
                     RobotInfo[] enemies = listEnemies.toArray(new RobotInfo[0]);
-                    RobotInfo[] sittingDucks = listSittingDucks.toArray(new RobotInfo[0]);
+                    sittingDucks = listSittingDucks.toArray(new RobotInfo[0]);
                     // Movement
                     {
                         if (enemyHP * 5 > nearbyHP * 2
