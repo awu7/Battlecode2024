@@ -557,7 +557,7 @@ public strictfp class RobotPlayer {
                 ok = true;
             }
         }
-        if(!ok) return;
+        //if(!ok) return; // turned into weighting, see below
         if(rc.getCrumbs() >= 250 && rc.getRoundNum() >= 180) {
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
             // Calculate number of nearby traps
@@ -567,14 +567,25 @@ public strictfp class RobotPlayer {
                     ++nearbyTraps;
                 }
             }
+            TrapType chosenTrap = rng.nextInt((visibleEnemies.length<=2)?5:2) == 0 ? TrapType.STUN : TrapType.EXPLOSIVE;
             for(Direction d : Direction.values()) {
                 boolean adjTrap = false;
-                TrapType chosenTrap = rng.nextInt(2) == 0 ? TrapType.STUN : TrapType.EXPLOSIVE;
-                for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 4)) {
-                    if(m.getTrapType() != TrapType.NONE) adjTrap = true;
+                boolean veryCloseTrap = false;
+                for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 5)) {
+                    if(m.getTrapType() != TrapType.NONE) {
+                        adjTrap = true;
+                        if (m.getMapLocation().distanceSquaredTo(rc.getLocation().add(d)) <= 2) {
+                            veryCloseTrap = true;
+                        }
+                    }
                 }
-                int chanceReciprocal = 3 * StrictMath.max(StrictMath.min(StrictMath.max(10 - (3 * visibleEnemies.length), 2), 2+nearbyTraps*2), 21 - 3 * StrictMath.min(distFromEdge(rc.getLocation()), 7));
-                if((!adjTrap || rc.getCrumbs() > 5000) && rc.canBuild(chosenTrap, rc.getLocation().add(d)) && rng.nextInt(chanceReciprocal) == 0) {
+                // CR in this context is chance reciprocal
+                int wallCR = (ok)?0:100; // Instead of outright cancel, make it a weighting
+                int nearbyTrapCR = 50+nearbyTraps*100;
+                int dissuadeEdgeCR = 71 - 10 * StrictMath.min(distFromEdge(rc.getLocation()), 7);
+                int nearbyEnemiesCR = StrictMath.max(100 - (50 * visibleEnemies.length), 1);
+                int chanceReciprocal = StrictMath.min(nearbyTrapCR, nearbyEnemiesCR) + wallCR;// + dissuadeEdgeCR;
+                if(!veryCloseTrap && (!adjTrap || rc.getCrumbs() > 5000 || nearbyEnemiesCR <= 2) && rc.canBuild(chosenTrap, rc.getLocation().add(d)) && rng.nextInt(chanceReciprocal) == 0) {
                     rc.build(chosenTrap, rc.getLocation().add(d));
                 }
             }

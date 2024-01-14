@@ -1380,9 +1380,26 @@ public strictfp class RobotPlayer {
                                 // Choose the best choice
                                 // Choices are either the safest, or safest where we can attack
                                 MapLocation finalTargetCell = targetCell;
-                                Arrays.sort(choices, 0, n, (a, b) -> {
-                                    return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
-                                });
+                                if (rc.getHealth() < 700 && enemies.length > 0) {
+                                    debug("RETREAT");
+                                    RobotInfo nearestEnemy = enemies[0];
+                                    int nearestEnemyDistSquared = 1000;
+                                    for (RobotInfo enemy : enemies) {
+                                        int currDistSquared = enemy.getLocation().distanceSquaredTo(rc.getLocation());
+                                        if (currDistSquared < nearestEnemyDistSquared) {
+                                            nearestEnemyDistSquared = currDistSquared;
+                                            nearestEnemy = enemy;
+                                        }
+                                    }
+                                    final RobotInfo actualNearestEnemy = nearestEnemy;
+                                    Arrays.sort(choices, 0, n, (a, b) -> {
+                                        return rc.getLocation().add(b).distanceSquaredTo(actualNearestEnemy.getLocation()) - rc.getLocation().add(a).distanceSquaredTo(actualNearestEnemy.getLocation());
+                                    });
+                                } else {
+                                    Arrays.sort(choices, 0, n, (a, b) -> {
+                                        return rc.getLocation().add(a).distanceSquaredTo(finalTargetCell) - rc.getLocation().add(b).distanceSquaredTo(finalTargetCell);
+                                    });
+                                }
                                 rc.move(choices[0]);
                             } else {
                                 // There are no choices
