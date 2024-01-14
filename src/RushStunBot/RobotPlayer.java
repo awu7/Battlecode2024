@@ -1,10 +1,9 @@
-package RushBot;
+package RushStunBot;
 
 import battlecode.common.*;
 
 import java.lang.System;
 import java.util.*;
-import java.util.function.ToIntBiFunction;
 
 class ActiveStun {
     public MapLocation location = null;
@@ -30,16 +29,6 @@ public strictfp class RobotPlayer {
     static RobotController rc;
     static Random rng;
     static final Direction[] directions = {
-            Direction.NORTH,
-            Direction.EAST,
-            Direction.SOUTH,
-            Direction.WEST,
-            Direction.NORTHEAST,
-            Direction.SOUTHEAST,
-            Direction.SOUTHWEST,
-            Direction.NORTHWEST,
-    };
-    static Direction[] shuffledDirections = {
             Direction.SOUTHEAST,
             Direction.NORTHEAST,
             Direction.SOUTHWEST,
@@ -49,7 +38,6 @@ public strictfp class RobotPlayer {
             Direction.SOUTH,
             Direction.WEST,
     };
-    static final String[] dirStrs = {"↑", "→", "↓", "←", "↗", "↘", "↙", "↖"};
     static final Direction[] trapDirs = {
             Direction.SOUTHEAST,
             Direction.NORTHEAST,
@@ -115,7 +103,7 @@ public strictfp class RobotPlayer {
     static int[] idx = new int[10000];
     /**
      * [2, 31] = scouters, broadcasts everything seen in allocated spot in array.
-     * [45, 49] = BFS bots, receives information from other bots and runs BFS in idle turns.
+     * 49 = BFS bot, receives information from other bots and runs a BFS in idle turns.
      */
     static int selfIdx = -1;
 
@@ -136,6 +124,7 @@ public strictfp class RobotPlayer {
     /**
      * 2d array storing a simplified version of the board with weights, used for BFS.
      */
+    static int[][] weight;
     static boolean vertical = true, horizontal = true, rotational = true;
     public enum Symmetry {
         UNKNOWN("Unknown"),
@@ -150,7 +139,6 @@ public strictfp class RobotPlayer {
         }
     }
     static Symmetry symmetry = Symmetry.UNKNOWN;
-    static ToIntBiFunction<Integer, Integer> getOpp = (x, y) -> { return 1; };
     static int width, height;
     static int widthMinus1, widthMinus2, widthMinus3;
     static int heightMinus1,heightMinus2, heightMinus3;
@@ -158,18 +146,6 @@ public strictfp class RobotPlayer {
     static StringBuilder q;
     static int[][] bfs;
     static int[][] optimal;
-    static boolean bfsDone = false;
-    static int bfsIdx = -2;
-    static int internalIdx = 0;
-    
-    static int[][] centreBfs, spawnBfs, flag0Bfs, flag1Bfs, flag2Bfs;
-    public enum BfsTarget {
-        CENTRE,
-        SPAWN,
-        FLAG0,
-        FLAG1,
-        FLAG2
-    }
 
     /**
      * Helper function to append to the bot's indicator string.
@@ -397,18 +373,12 @@ public strictfp class RobotPlayer {
             for(RobotInfo enemy : possibleEnemies) {
                 boolean flagPriority = enemy.hasFlag;
                 boolean stunPriority = false;
-                /*
-                // nullptr exception due to sittingDucks being uninitialised
-                // because it's calculated after first call of attack()
                 for (RobotInfo stunned : sittingDucks) {
-                    if (stunned == null) {
-                        continue;
-                    }
                     if (stunned.ID == enemy.ID) {
                         stunPriority = true;
                         break;
                     }
-                }*/
+                }
                 int totalPriority = (flagPriority?2:0)+(stunPriority?1:0);
                 // If target is of higher priority than current, retarget
                 // If target is of same priority as current, and has less health, retarget
@@ -487,36 +457,14 @@ public strictfp class RobotPlayer {
         }
     }
 
-    public static void pickupFlagUtil(FlagInfo flag) throws GameActionException {
-        MapLocation flagLoc = flag.getLocation();
-        if (!rc.canPickupFlag(flagLoc)) {
-            return;
-        }
-        int i = spawnBfs != null ? spawnBfs[flagLoc.x][flagLoc.y] : 0;
-        if (i > 0) {
-            Direction dir = directions[i - 1];
-            for (Direction choice: new Direction[]{dir, dir.rotateLeft(), dir.rotateRight()}) {
-                MapLocation next = flagLoc.add(choice);
-                if (next.equals(rc.getLocation())) {
-                    rc.pickupFlag(flagLoc);
-                    readStack();
-                    return;
-                }
-                RobotInfo friend = rc.senseRobotAtLocation(next);
-                if (friend != null && friend.getTeam() == rc.getTeam()) {
-                    debug("Letting friend pickup");
-                    return;
-                }
-            }
-        }
-        rc.pickupFlag(flagLoc);
-        readStack();
-    }
-
     static void pickupFlag(boolean allowCurrentCell) throws GameActionException {
         if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
             for(FlagInfo f : rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
-                pickupFlagUtil(f);
+                if((allowCurrentCell || !f.getLocation().equals(rc.getLocation())) && rc.canPickupFlag(f.getLocation()) && rc.senseNearbyRobots(f.getLocation(), 0, rc.getTeam()).length == 0) {
+                    rc.pickupFlag(f.getLocation());
+                    readStack();
+                    break;
+                }
             }
         }
     }
@@ -548,11 +496,11 @@ public strictfp class RobotPlayer {
             for(Direction d : Direction.values()) {
                 boolean adjTrap = false;
                 TrapType chosenTrap = TrapType.STUN;
-                if (rng.nextBoolean()) {
+                /*if (rng.nextBoolean()) {
                     chosenTrap = TrapType.EXPLOSIVE;
-                }
+                }*/
                 for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 4)) {
-                    if(m.getTrapType() == TrapType.STUN || m.getTrapType() == TrapType.EXPLOSIVE) adjTrap = true;
+                    if(m.getTrapType() == TrapType.STUN) adjTrap = true;
                 }
                 int chanceReciprocal = 5 * StrictMath.max(StrictMath.min(StrictMath.max(10 - (3 * visibleEnemies.length), 2), 2+nearbyTraps*2), 21 - 3 * StrictMath.min(distFromEdge(rc.getLocation()), 7));
                 if(!adjTrap && rc.canBuild(chosenTrap, rc.getLocation().add(d)) && rng.nextInt(chanceReciprocal) == 0) {
@@ -565,9 +513,9 @@ public strictfp class RobotPlayer {
     static void shuffle() {
         for (int i = 7; i > 0; --i) {
             int j = rng.nextInt(i + 1);
-            Direction temp = shuffledDirections[i];
-            shuffledDirections[i] = shuffledDirections[j];
-            shuffledDirections[j] = temp;
+            Direction temp = directions[i];
+            directions[i] = directions[j];
+            directions[j] = temp;
         }
     }
 
@@ -617,12 +565,7 @@ public strictfp class RobotPlayer {
         for (int y = height - 1; y >= 0; --y) {
             StringBuilder row = new StringBuilder();
             for (int x = 0; x < width; ++x) {
-//                if (optimal[x][y] < 10) row.append(' ');
-//                if (optimal[x][y] < 0) row.append(' ');
-//                else row.append(optimal[x][y]);
-                row.append(" ");
-                if (spawnBfs[x][y] == 0) row.append(" ");
-                else row.append(dirStrs[spawnBfs[x][y] - 1]);
+                row.append(board[x][y]);
             }
             System.out.println(row);
         }
@@ -632,7 +575,7 @@ public strictfp class RobotPlayer {
         if (a == 0 || b == 0) {
             return true;
         }
-        if (a == b && !(a == 3 || a == 4)) {
+        if (a == b) {
             return true;
         }
         if (a == 3 && b == 4) {
@@ -688,8 +631,10 @@ public strictfp class RobotPlayer {
                         vertical = false;
                         if (!horizontal) {
                             symmetry = Symmetry.ROTATIONAL;
+                            System.out.println(symmetry.label);
                         } else if (!rotational) {
                             symmetry = Symmetry.HORIZONTAL;
+                            System.out.println(symmetry.label);
                         }
                     }
                     int hor = board[width - 1 - x][y];
@@ -697,8 +642,10 @@ public strictfp class RobotPlayer {
                         horizontal = false;
                         if (!vertical) {
                             symmetry = Symmetry.ROTATIONAL;
+                            System.out.println(symmetry.label);
                         } else if (!rotational) {
                             symmetry = Symmetry.VERTICAL;
+                            System.out.println(symmetry.label);
                         }
                     }
                     int rot = board[width - 1 - x][height - 1 - y];
@@ -706,8 +653,10 @@ public strictfp class RobotPlayer {
                         rotational = false;
                         if (!horizontal) {
                             symmetry = Symmetry.VERTICAL;
+                            System.out.println(symmetry.label);
                         } else if (!vertical) {
                             symmetry = Symmetry.HORIZONTAL;
+                            System.out.println(symmetry.label);
                         }
                     }
                 } else {
@@ -856,185 +805,6 @@ public strictfp class RobotPlayer {
         if (((hash >>> 2) & 1) == 0) rotational = false;
     }
 
-    public static void broadcastBfs() throws GameActionException {
-        for (int i = 4; i < 64; ++i) {
-            int hash = 0;
-            hash |= optimal[internalIdx / height][internalIdx % height];
-            if (++internalIdx == width * height) break;
-            hash |= optimal[internalIdx / height][internalIdx % height] << 4;
-            if (++internalIdx == width * height) break;
-            hash |= optimal[internalIdx / height][internalIdx % height] << 8;
-            if (++internalIdx == width * height) break;
-            hash |= optimal[internalIdx / height][internalIdx % height] << 12;
-            if (++internalIdx == width * height) break;
-            rc.writeSharedArray(i, hash);
-        }
-        if (internalIdx == width * height) {
-            switch (selfIdx) {
-                case 45:
-                    centreBfs = optimal;
-                    break;
-                case 46:
-                    spawnBfs = optimal;
-                    break;
-                case 47:
-                    flag0Bfs = optimal;
-                    break;
-                case 48:
-                    flag1Bfs = optimal;
-                    break;
-                case 49:
-                    flag2Bfs = optimal;
-                    break;
-            }
-            bfsIdx = -3;
-            internalIdx = 0;
-        }
-    }
-
-    public static void receiveBfs() throws GameActionException {
-        if (internalIdx == 0) {
-            switch (bfsIdx) {
-                case 45:
-                    centreBfs = new int[width][height];
-                    break;
-                case 46:
-                    spawnBfs = new int[width][height];
-                    break;
-                case 47:
-                    flag0Bfs = new int[width][height];
-                    break;
-                case 48:
-                    flag1Bfs = new int[width][height];
-                    break;
-                case 49:
-                    flag2Bfs = new int[width][height];
-                    break;
-                default:
-                    System.out.println("Something went wrong!");
-            }
-        }
-        int[][] thisBfs;
-        switch (bfsIdx) {
-            case 45:
-                thisBfs = centreBfs;
-                break;
-            case 46:
-                thisBfs = spawnBfs;
-                break;
-            case 47:
-                thisBfs = flag0Bfs;
-                break;
-            case 48:
-                thisBfs = flag1Bfs;
-                break;
-            case 49:
-                thisBfs = flag2Bfs;
-                break;
-            default:
-                thisBfs = new int[width][height];
-                System.out.println("Something went wrong!");
-        }
-        int mask = (1 << 4) - 1;
-        for (int i = 4; i < 64; ++i) {
-            int hash = rc.readSharedArray(i);
-            thisBfs[internalIdx / height][internalIdx % height] = hash & mask;
-            if (++internalIdx == width * height) break;
-            thisBfs[internalIdx / height][internalIdx % height] = (hash >>> 4) & mask;
-            if (++internalIdx == width * height) break;
-            thisBfs[internalIdx / height][internalIdx % height] = (hash >>> 8) & mask;
-            if (++internalIdx == width * height) break;
-            thisBfs[internalIdx / height][internalIdx % height] = (hash >>> 12) & mask;
-            if (++internalIdx == width * height) break;
-        }
-        if (internalIdx == width * height) {
-            bfsIdx++;
-            internalIdx = 0;
-        }
-    }
-
-    public static void moveBfsUtil(int[][] bfsArr, BfsTarget target) throws GameActionException {
-        MapLocation loc = rc.getLocation();
-        RobotInfo[] friends = rc.senseNearbyRobots(-1, rc.getTeam());
-        int i = bfsArr != null ? bfsArr[loc.x][loc.y] : 0;
-        if (i > 0) {
-            debug("Moving using bfs");
-            Direction dir = directions[i - 1];
-            rc.setIndicatorLine(rc.getLocation(), loc.add(dir), 0, 0, 255);
-            Direction[] choices = {dir, dir.rotateLeft(), dir.rotateRight()};
-            for (Direction choice: choices) {
-                if (rc.canMove(choice)) {
-                    rc.move(choice);
-                    return;
-                }
-            }
-            for (Direction choice: choices) {
-                MapLocation next = loc.add(choice);
-                int j = bfsArr != null ? bfsArr[next.x][next.y] : 0;
-                if (j > 0) {
-                    Direction nextDir = directions[j - 1];
-                    for (Direction nextChoice: new Direction[]{nextDir, nextDir.rotateLeft(), nextDir.rotateRight()}) {
-                        MapLocation nextNext = next.add(nextChoice);
-                        if (rc.canDropFlag(nextNext)) {
-                            RobotInfo friend = rc.senseRobotAtLocation(nextNext);
-                            if (friend != null && friend.getTeam() == rc.getTeam()) {
-                                rc.dropFlag(next);
-                                debug("Passed the flag to a spot");
-                                return;
-                            }
-                        }
-                    }
-                }
-                if (rc.canDropFlag(next)) {
-                    RobotInfo friend = rc.senseRobotAtLocation(next);
-                    if (friend != null && friend.getTeam() == rc.getTeam()) {
-                        rc.dropFlag(next);
-                        debug("Passed the flag in bfs");
-                        return;
-                    }
-                }
-            }
-        }
-        debug("Can't bfs, defaulting");
-        switch (target) {
-            case CENTRE:
-                moveBetter(centre);
-                break;
-            case SPAWN:
-                moveBetter(closest(rc.getAllySpawnLocations()));
-                break;
-            case FLAG0:
-            case FLAG1:
-            case FLAG2:
-                moveBetter(new MapLocation(1, 1));
-                break;
-            default:
-                System.out.println("Something went wrong in moveBfsUtil()!");
-        }
-    }
-
-    public static void moveBfs(BfsTarget target) throws GameActionException {
-        switch (target) {
-            case CENTRE:
-                moveBfsUtil(centreBfs, target);
-                break;
-            case SPAWN:
-                moveBfsUtil(spawnBfs, target);
-                break;
-            case FLAG0:
-                moveBfsUtil(flag0Bfs, target);
-                break;
-            case FLAG1:
-                moveBfsUtil(flag1Bfs, target);
-                break;
-            case FLAG2:
-                moveBfsUtil(flag2Bfs, target);
-                break;
-            default:
-                System.out.println("Something went wrong in moveBfs()!");
-        }
-    }
-
     public static void run(RobotController _rc) throws GameActionException {
         rc = _rc;
         rng = new Random(rc.getID()+1);
@@ -1054,9 +824,6 @@ public strictfp class RobotPlayer {
             team = 2;
         }
         board = new int[width][height];
-        for (MapLocation spawn: rc.getAllySpawnLocations()) {
-            board[spawn.x][spawn.y] = 3;
-        }
         while (true) {
             try {
                 round = rc.getRoundNum();
@@ -1096,7 +863,7 @@ public strictfp class RobotPlayer {
                     }
                 } else if (round >= 3 && round <= 160) {
                     if (rc.isSpawned()) {
-                        if (selfIdx >= 45) {
+                        if (selfIdx == 49) {
                             for (int i = 4; i < 64; i += 2) {
                                 decodeBroadcast(i);
                             }
@@ -1108,37 +875,26 @@ public strictfp class RobotPlayer {
                         }
                     }
                 } else if (round == 161) {
-                    if (selfIdx <= 44) {
+                    if (selfIdx <= 42) {
                         // all robots broadcast their interpretation of the map's symmetry
-                        broadcastSymmetry(selfIdx + 19);
+                        broadcastSymmetry(selfIdx + 21);
                     } else {
                         // receive symmetry broadcasts from other robots
-                        for (int i = 19; i < 64; ++i) {
+                        for (int i = 21; i < 64; ++i) {
                             decodeSymmetry(i);
                         }
-                        if (symmetry == Symmetry.VERTICAL) {
-                            getOpp = (x, y) -> board[x][heightMinus1 - y];
-                        } else if (symmetry == Symmetry.HORIZONTAL) {
-                            getOpp = (x, y) -> board[widthMinus1 - x][y];
-                        } else {
-                            getOpp = (x, y) -> board[widthMinus1 - x][heightMinus1 - y];
-                        }
                     }
-                    if (selfIdx >= 45) {
+                    if (selfIdx >= 43) {
                         q = new StringBuilder();
                         MapLocation loc = new MapLocation(1, 1);  // will use Aiden's centre spawns once pulled
-                        bfs = new int[width][height];
-                        for (int x = 0; x < width; ++x) {
-                            UnrolledUtils.fill(bfs[x], -1);
-                        }
-                        if (selfIdx == 45) {
-                            q.append(hashLoc(centre));
-                            bfs[centre.x][centre.y] = 0;
+                        if (selfIdx == 43) {
+                            q.append(hashLoc(loc));
+                        } else if (selfIdx == 44) {
+                            q.append(hashLoc(loc));
+                        } else if (selfIdx == 45) {
+                            q.append(hashLoc(loc));
                         } else if (selfIdx == 46) {
-                            for (MapLocation spawn: rc.getAllySpawnLocations()) {
-                                q.append(hashLoc(spawn));
-                                bfs[spawn.x][spawn.y] = 0;
-                            }
+                            q.append(hashLoc(loc));
                         } else if (selfIdx == 47) {
                             q.append(hashLoc(loc));
                         } else if (selfIdx == 48) {
@@ -1146,64 +902,47 @@ public strictfp class RobotPlayer {
                         } else if (selfIdx == 49) {
                             q.append(hashLoc(loc));
                         }
+                        bfs = new int[width][height];
                         optimal = new int[width][height];
-                        rc.writeSharedArray(selfIdx + 14, 0);
+                        for (int x = 0; x < width; ++x) {
+                            UnrolledUtils.fill(bfs[x], -1);
+                        }
                         continue;
                     }
-                } else if (round >= 162 && bfsIdx < 50) {
-                    if (selfIdx >= 45 && !bfsDone) {
+                } else if (round == 162) {
+                    if (selfIdx >= 43) {
+                        for (int x = 0; x < width; ++x) {
+                            UnrolledUtils.fill(optimal[x], -1);
+                        }
+                        System.out.println(Clock.getBytecodesLeft());
+                    }
+                } else if (round >= 163) {
+                    if (selfIdx >= 43) {
                         // BFS time baby!
                         while (q.length() > 0) {
-                            int x1 = q.charAt(0) / height, y1 = q.charAt(0) % height;
+                            MapLocation loc = unhashChar(q.charAt(0));
                             q.deleteCharAt(0);
-                            int nextDist = bfs[x1][y1] + 1;
+                            int nextDist = board[loc.x][loc.y];
                             for (int i = 0; i < 8; ++i) {
-                                int x2 = x1 + directions[i].opposite().getDeltaX(), y2 = y1 + directions[i].opposite().getDeltaY();
-                                if (x2 >= 0 && x2 < width && y2 >= 0 && y2 < height) {
-                                    if ((board[x2][y2] | getOpp.applyAsInt(x2, y2)) == 0 && bfs[x2][y2] == -1) {
-                                        bfs[x2][y2] = nextDist;
-                                        optimal[x2][y2] = i + 1;
-                                        q.append((char) (x2 * height + y2));
+                                MapLocation next = loc.add(directions[i]);
+                                int x = next.x, y = next.y;
+                                if (x >= 0 && x < width && y >= 0 && y < height) {
+                                    if (board[x][y] == 0 && bfs[x][y] == -1) {
+                                        bfs[x][y] = nextDist;
+                                        optimal[x][y] = i;
+                                        q.append(hashLoc(next));
                                     }
                                 }
                             }
-                            if (Clock.getBytecodesLeft() < 1000) {
+                            if (Clock.getBytecodesLeft() < 2000) {
                                 break;
                             }
                         }
                         if (q.length() > 0) {
                             continue;
                         } else {
-                            bfsDone = true;
-                            rc.writeSharedArray(selfIdx + 14, 1);
-                            bfsIdx = -1;
+                            System.out.println("BFS finished.");
                         }
-                        continue;
-                    }
-                    if (bfsIdx == -2) {
-                        bfsIdx = -1;
-                    } else if (bfsIdx == -1) {
-                        bfsIdx = 45;
-                        for (int i = 59; i < 64; ++i) {
-                            if (rc.readSharedArray(i) == 0) {
-                                bfsIdx = -1;
-                                break;
-                            }
-                        }
-                        if (bfsIdx != -1) {
-                            System.out.println(selfIdx + ", ready!");
-                            if (bfsIdx == selfIdx) {
-                                broadcastBfs();
-                            } else if (bfsIdx < selfIdx) {
-                                receiveBfs();
-                            }
-                        }
-                    } else if (bfsIdx == selfIdx) {
-                        broadcastBfs();
-                    } else if (bfsIdx == -3) {
-                        bfsIdx = selfIdx + 1;
-                    } else {
-                        receiveBfs();
                     }
                 }
                 if (!rc.isSpawned()) {
@@ -1221,7 +960,7 @@ public strictfp class RobotPlayer {
                             swarmTarget = new MapLocation(-1, -1);
                             if (round == 1) {
                                 shuffle();
-                                for (Direction dir : shuffledDirections) {
+                                for (Direction dir : directions) {
                                     if (rc.canMove(dir)) {
                                         if (!rc.senseMapInfo(rc.getLocation().add(dir)).isSpawnZone()) {
                                             rc.move(dir);
@@ -1243,12 +982,7 @@ public strictfp class RobotPlayer {
                     }
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     MapLocation nextLoc;
-                    MapLocation[] rawCrumbs = rc.senseNearbyCrumbs(-1);
-                    List<MapLocation> validCrumbs = new ArrayList<MapLocation>();
-                    for (MapLocation crumb : rawCrumbs) {
-                        if (!rc.senseMapInfo(crumb).isWall()) validCrumbs.add(crumb);
-                    }
-                    MapLocation[] crumbs = validCrumbs.toArray(new MapLocation[0]);
+                    MapLocation[] crumbs = rc.senseNearbyCrumbs(-1);
                     if(crumbs.length > 0) {
                         // sort crumbs by distance
                         Arrays.sort(crumbs, closestComp());
@@ -1267,9 +1001,6 @@ public strictfp class RobotPlayer {
                 } else if (!rc.hasFlag() && rc.senseNearbyFlags(0, rc.getTeam().opponent()).length >= 1 && !rc.canPickupFlag(rc.getLocation())) {
                     // wait, we need to pick up a flag dropped by a teammate
                 } else {
-                    if (rc.hasFlag()) {
-                        moveBfs(BfsTarget.SPAWN);
-                    }
                     if (isBuilder != 0){
                         if (!rc.getLocation().equals(spawnCentres[isBuilder-40])){
                             moveBetter(spawnCentres[isBuilder-40]);
@@ -1327,7 +1058,7 @@ public strictfp class RobotPlayer {
                             int currTargeted = 0;
                             Direction[] choices = new Direction[8];
                             MapLocation rcLocation = rc.getLocation();
-                            boolean returnToCombat = rc.isActionReady() && rc.getHealth() > 750; // Only return if currently safe
+                            boolean returnToCombat = rc.isActionReady(); // Only return if currently safe
                             for (RobotInfo enemy : enemies) {
                                 if (enemy.getLocation().isWithinDistanceSquared(rcLocation, 4)) {
                                     currTargeted++;
@@ -1340,7 +1071,7 @@ public strictfp class RobotPlayer {
                             }
                             int n = 0; // size of choices;
                             shuffle();
-                            for (Direction dir : shuffledDirections) {
+                            for (Direction dir : directions) {
                                 if (rc.canMove(dir)) {
                                     int count = 0;
                                     for (RobotInfo enemy : enemies) {
@@ -1373,7 +1104,7 @@ public strictfp class RobotPlayer {
                                 int minAdj = rc.senseNearbyRobots(2, rc.getTeam()).length;
                                 Direction choice = Direction.NORTH;
                                 boolean overridden = false;
-                                for (Direction dir : shuffledDirections) {
+                                for (Direction dir : directions) {
                                     if (rc.canMove(dir)) {
                                         int adjCount = rc.senseNearbyRobots(-1, rc.getTeam()).length;
                                         if (adjCount < minAdj) {
