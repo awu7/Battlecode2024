@@ -304,6 +304,7 @@ public strictfp class RobotPlayer {
             nextLocRobot = rc.senseRobotAtLocation(nextLoc);
             if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
                 rc.dropFlag(nextLoc);
+                debug("Passed flag in moveBetter()");
                 writeStack();
             }
         }
@@ -490,6 +491,10 @@ public strictfp class RobotPlayer {
     public static void pickupFlagUtil(FlagInfo flag) throws GameActionException {
         MapLocation flagLoc = flag.getLocation();
         if (!rc.canPickupFlag(flagLoc)) {
+            return;
+        }
+        if (flagLoc.equals(rc.getLocation())) {
+            rc.pickupFlag(flagLoc);
             return;
         }
         int i = spawnBfs != null ? spawnBfs[flagLoc.x][flagLoc.y] : 0;
@@ -954,6 +959,9 @@ public strictfp class RobotPlayer {
     }
 
     public static void moveBfsUtil(int[][] bfsArr, BfsTarget target) throws GameActionException {
+        if (!rc.isMovementReady()) {
+            return;
+        }
         MapLocation loc = rc.getLocation();
         RobotInfo[] friends = rc.senseNearbyRobots(-1, rc.getTeam());
         int i = bfsArr != null ? bfsArr[loc.x][loc.y] : 0;
@@ -982,7 +990,8 @@ public strictfp class RobotPlayer {
                                 debug("Passed the flag to a spot");
                                 return;
                             }
-                        }
+                            System.out.println("No friend at " + nextNext.x + ", " + nextNext.y);
+                        } else System.out.println("Can't drop flag at " + nextNext.x + ", " + nextNext.y);
                     }
                 }
                 if (rc.canDropFlag(next)) {
@@ -992,7 +1001,8 @@ public strictfp class RobotPlayer {
                         debug("Passed the flag in bfs");
                         return;
                     }
-                }
+                    System.out.println("No friend at " + next.x + ", " + next.y);
+                } else System.out.println("Can't drop flag at " + next.x + ", " + next.y);
             }
         }
         debug("Can't bfs, defaulting");
@@ -1269,6 +1279,7 @@ public strictfp class RobotPlayer {
                 } else {
                     if (rc.hasFlag()) {
                         moveBfs(BfsTarget.SPAWN);
+                        continue;
                     }
                     if (isBuilder != 0){
                         if (!rc.getLocation().equals(spawnCentres[isBuilder-40])){
