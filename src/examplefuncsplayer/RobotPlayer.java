@@ -99,7 +99,7 @@ public strictfp class RobotPlayer {
                     }
                     else if (rc.canAttack(nextLoc)){
                         rc.attack(nextLoc);
-                        System.out.println("Take that! Damaged an enemy that was in our way!");
+//                        System.out.println("Take that! Damaged an enemy that was in our way!");
                     }
 
                     // Rarely attempt placing traps behind the robot.
