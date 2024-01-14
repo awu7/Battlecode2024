@@ -49,7 +49,7 @@ public strictfp class RobotPlayer {
             Direction.SOUTH,
             Direction.WEST,
     };
-    static final String[] dirStrs = {"↑", "→", "↓", "←", "↗", "↘", "↙", "↖"};
+    static final String[] dirStrs = {};
     static final Direction[] trapDirs = {
             Direction.SOUTHEAST,
             Direction.NORTHEAST,
@@ -225,9 +225,11 @@ public strictfp class RobotPlayer {
     }
 
     static MapLocation closest(MapLocation[] locs) {
+        if(locs.length == 0) return new MapLocation(-1, -1);
         int mn = 1000000000;
         MapLocation res = locs[0];
         for (int i = 0; i < locs.length; i++) {
+            if(!rc.onTheMap(locs[i])) continue;
             int dist = locs[i].distanceSquaredTo(rc.getLocation());
             if (dist < mn) {
                 mn = dist;
@@ -364,11 +366,18 @@ public strictfp class RobotPlayer {
         FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
         MapLocation[] flagLocs = new MapLocation[possibleFlags.length];
         for(int i = 0; i < possibleFlags.length; i++) {
-            flagLocs[i] = possibleFlags[i].getLocation();
+            if(!possibleFlags[i].isPickedUp()) flagLocs[i] = possibleFlags[i].getLocation();
+            else flagLocs[i] = new MapLocation(-1, -1);
         }
-        if(possibleFlags.length >= 1) return closest(flagLocs);
-        for(RobotInfo ally : nearbyAllies) {
-            if(ally.hasFlag()) return ally.getLocation();
+        MapLocation closestFlag = closest(flagLocs);
+        if(rc.onTheMap(closestFlag)) return closestFlag;
+        RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+        MapLocation[] enemyLocs = new MapLocation[enemies.length];
+        for(int i = 0; i < enemies.length; i++) {
+            enemyLocs[i] = enemies[i].getLocation();
+        }
+        if(enemies.length >= 1) {
+            return closest(enemyLocs);
         }
         if(swarmLeader != 0) {
             swarmTarget = new MapLocation(rc.readSharedArray(1), rc.readSharedArray(2));
@@ -528,7 +537,7 @@ public strictfp class RobotPlayer {
 
     static void buildTraps() throws GameActionException {
         boolean ok = true;
-        MapInfo[] mapInfos = rc.senseNearbyMapInfos(-1);
+        MapInfo[] mapInfos = rc.senseNearbyMapInfos(3);
         for(MapInfo m : mapInfos) {
             if(m.isWall()) {
                 ok = false;
@@ -552,15 +561,12 @@ public strictfp class RobotPlayer {
             }
             for(Direction d : Direction.values()) {
                 boolean adjTrap = false;
-                TrapType chosenTrap = TrapType.STUN;
-                if (rng.nextBoolean()) {
-                    chosenTrap = TrapType.EXPLOSIVE;
-                }
+                TrapType chosenTrap = rng.nextInt(2) == 0 ? TrapType.STUN : TrapType.EXPLOSIVE;
                 for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 4)) {
-                    if(m.getTrapType() == TrapType.STUN || m.getTrapType() == TrapType.EXPLOSIVE) adjTrap = true;
+                    if(m.getTrapType() != TrapType.NONE) adjTrap = true;
                 }
-                int chanceReciprocal = 5 * StrictMath.max(StrictMath.min(StrictMath.max(10 - (3 * visibleEnemies.length), 2), 2+nearbyTraps*2), 21 - 3 * StrictMath.min(distFromEdge(rc.getLocation()), 7));
-                if(!adjTrap && rc.canBuild(chosenTrap, rc.getLocation().add(d)) && rng.nextInt(chanceReciprocal) == 0) {
+                int chanceReciprocal = 3 * StrictMath.max(StrictMath.min(StrictMath.max(10 - (3 * visibleEnemies.length), 2), 2+nearbyTraps*2), 21 - 3 * StrictMath.min(distFromEdge(rc.getLocation()), 7));
+                if((!adjTrap || rc.getCrumbs() > 5000) && rc.canBuild(chosenTrap, rc.getLocation().add(d)) && rng.nextInt(chanceReciprocal) == 0) {
                     rc.build(chosenTrap, rc.getLocation().add(d));
                 }
             }
@@ -1407,7 +1413,7 @@ public strictfp class RobotPlayer {
                                     }
                                 }
                             }
-                        } else if (sittingDucks.length > 0) {
+                        } else if (sittingDucks.length > 0 && !rc.hasFlag()) {
                             int minDistSquared = 100;
                             MapLocation[] choices = new MapLocation[sittingDucks.length];
                             int n = 0;
