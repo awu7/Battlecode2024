@@ -58,7 +58,7 @@ public strictfp class RobotPlayer {
 
     static MapLocation centre;
     static MapLocation[] spawnCentres = new MapLocation[3];
-    static int isBuilder = 0;
+    static MapLocation home = new MapLocation(-1, -1);
     static int movesLeft = 0;
     static MapLocation target;
     static int team = 0;
@@ -497,6 +497,14 @@ public strictfp class RobotPlayer {
         }
     }
 
+    static void farmBuildXp() throws GameActionException {
+        if(rc.getLevel(SkillType.BUILD) < 6) {
+            for(Direction d : directions) {
+                if(rc.canDig(rc.getLocation().add(d))) rc.dig(rc.getLocation().add(d));
+            }
+        }
+    }
+
     public static void pickupFlagUtil(FlagInfo flag) throws GameActionException {
         MapLocation flagLoc = flag.getLocation();
         if (!rc.canPickupFlag(flagLoc)) {
@@ -550,7 +558,7 @@ public strictfp class RobotPlayer {
             }
         }
         if(!ok) return;
-        if(rc.getCrumbs() >= 250 && rc.getRoundNum() >= 200) {
+        if(rc.getCrumbs() >= 250 && rc.getRoundNum() >= 180) {
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
             // Calculate number of nearby traps
             int nearbyTraps = 0;
@@ -1107,8 +1115,8 @@ public strictfp class RobotPlayer {
                             f++;
                         }
                     }
-                    for (int i=40; i<43; i++){
-                        if (ids[i]+9999 == rc.getID()) isBuilder = i;
+                    for(int i = 40; i < 43; i++) {
+                        if(ids[i] + 9999 == rc.getID()) home = spawnCentres[i - 40];
                     }
                 } else if (round >= 3 && round <= 160) {
                     if (rc.isSpawned()) {
@@ -1248,15 +1256,13 @@ public strictfp class RobotPlayer {
                             break;
                         }
                     }
-                } else if (round <= 150){
-                    if (isBuilder != 0){
-                        if (!rc.getLocation().equals(spawnCentres[isBuilder-40])){
-                            moveBetter(spawnCentres[isBuilder-40]);
-                            rc.setIndicatorLine(rc.getLocation(), spawnCentres[isBuilder-40], 0, 0, 255);
-                        }
-                        if (rc.getLocation().equals(spawnCentres[isBuilder-40])) trapSpawn();
-                        continue;
+                } else if(rc.onTheMap(home)) {
+                    if(!rc.getLocation().equals(home)) {
+                        moveBetter(home);
+                        rc.setIndicatorLine(rc.getLocation(), home, 0, 0, 255);
                     }
+                    if(rc.getLocation().equals(home)) trapSpawn();
+                } else if (round <= 150) {
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                     MapLocation nextLoc;
                     MapLocation[] rawCrumbs = rc.senseNearbyCrumbs(-1);
@@ -1285,14 +1291,6 @@ public strictfp class RobotPlayer {
                 } else {
                     if (rc.hasFlag()) {
                         moveBfs(BfsTarget.SPAWN);
-                        continue;
-                    }
-                    if (isBuilder != 0){
-                        if (!rc.getLocation().equals(spawnCentres[isBuilder-40])){
-                            moveBetter(spawnCentres[isBuilder-40]);
-                            rc.setIndicatorLine(rc.getLocation(), spawnCentres[isBuilder-40], 0, 0, 255);
-                        }
-                        if (rc.getLocation().equals(spawnCentres[isBuilder-40])) trapSpawn();
                         continue;
                     }
                     nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
@@ -1468,8 +1466,9 @@ public strictfp class RobotPlayer {
                     pickupFlag(true);
                     healFlagBearer();
                     attack();
-                    heal();
                     buildTraps();
+                    heal();
+                    if(rc.getCrumbs() > 5000) buildTraps();
                     // Attempt to buy global upgrades
                     if (rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
