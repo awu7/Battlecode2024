@@ -1492,7 +1492,7 @@ public strictfp class RobotPlayer {
                             // Choose the best choice
                             // Choices are either the safest, or safest where we can attack
                             MapLocation finalTargetCell = targetCell;
-                            if (rc.getHealth() < 700 && enemies.length > 0) {
+                            if (rc.getHealth() < 900 && enemies.length > 0) {
                                 debug("RETREAT");
                                 RobotInfo nearestEnemy = enemies[0];
                                 int nearestEnemyDistSquared = 1000;

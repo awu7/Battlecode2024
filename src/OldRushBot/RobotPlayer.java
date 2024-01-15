@@ -62,6 +62,7 @@ public strictfp class RobotPlayer {
     static int movesLeft = 0;
     static MapLocation target;
     static int team = 0;
+    static boolean lastFlag = false;
     static int round;
     /**
      * Array of all previous stuns
@@ -1324,9 +1325,16 @@ public strictfp class RobotPlayer {
                 }
                 FlagInfo[] oppFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
                 RobotInfo[] friends = rc.senseNearbyRobots(-1, rc.getTeam());
+                RobotInfo[] enemies = rc.senseNearbyRobots(9, rc.getTeam().opponent());
+                MapLocation[] enemyLocs = new MapLocation[enemies.length];
+                for (int i = 0; i < enemies.length; ++i) enemyLocs[i] = enemies[i].getLocation();
                 if (oppFlags.length > 0) {
                     if (rc.hasFlag()) {
-                        moveBfs(BfsTarget.SPAWN);
+                        if (enemies.length > 0 && false) {
+                            rc.move(rc.getLocation().directionTo(closest(enemyLocs)).opposite());
+                        } else {
+                            moveBfs(BfsTarget.SPAWN);
+                        }
                         continue;
                     }
                     UnrolledUtils.shuffle(oppFlags, rng);
@@ -1386,8 +1394,11 @@ public strictfp class RobotPlayer {
                             }
                         }
                     }
+                    lastFlag = (rc.senseBroadcastFlagLocations().length + oppFlags.length)<=1;
+                    if (lastFlag) debug("LAST FLAG");
                     for (FlagInfo flag: rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
-                        if (flag.isPickedUp()) {
+                        if (flag.isPickedUp() && lastFlag) {
+                            debug("LET'S SWARM");
                             MapLocation loc = flag.getLocation();
                             moveBetter(loc);
                             if (rc.canSenseLocation(loc) && rc.canHeal(loc)) {
@@ -1432,7 +1443,7 @@ public strictfp class RobotPlayer {
                     enemyHP += enemy.health;
                     listEnemies.add(enemy);
                 }
-                RobotInfo[] enemies = listEnemies.toArray(new RobotInfo[0]);
+                enemies = listEnemies.toArray(new RobotInfo[0]);
                 sittingDucks = listSittingDucks.toArray(new RobotInfo[0]);
                 // Movement
                 {
@@ -1481,7 +1492,7 @@ public strictfp class RobotPlayer {
                             // Choose the best choice
                             // Choices are either the safest, or safest where we can attack
                             MapLocation finalTargetCell = targetCell;
-                            if (rc.getHealth() < 700 && enemies.length > 0) {
+                            if (rc.getHealth() < 750 && enemies.length > 0) {
                                 debug("RETREAT");
                                 RobotInfo nearestEnemy = enemies[0];
                                 int nearestEnemyDistSquared = 1000;
