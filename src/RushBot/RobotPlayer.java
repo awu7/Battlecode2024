@@ -49,7 +49,7 @@ public strictfp class RobotPlayer {
             Direction.SOUTH,
             Direction.WEST,
     };
-    static final String[] dirStrs = {"↑", "→", "↓", "←", "↗", "↘", "↙", "↖"};
+    static final String[] dirStrs = {};
     static final Direction[] trapDirs = {
             Direction.SOUTHEAST,
             Direction.NORTHEAST,
@@ -74,7 +74,7 @@ public strictfp class RobotPlayer {
         List<MapLocation> currStuns = new ArrayList<MapLocation>();
         MapInfo[] mapInfos = rc.senseNearbyMapInfos(-1);
         for (MapInfo mi : mapInfos) {
-            if (mi.getTrapType() == TrapType.STUN) {
+            if (mi.getTrapType() == TrapType.STUN || mi.getTrapType() == TrapType.EXPLOSIVE) {
                 currStuns.add(mi.getMapLocation());
             }
         }
@@ -362,7 +362,6 @@ public strictfp class RobotPlayer {
                     return f.getLocation();
                 }
             }
-            return friendlyFlags[0].getLocation();
         }
         FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
         MapLocation[] flagLocs = new MapLocation[possibleFlags.length];
@@ -388,8 +387,11 @@ public strictfp class RobotPlayer {
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
         // System.out.println("Swarm retargeted");
         MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
+        Arrays.sort(possibleSenses, (MapLocation a, MapLocation b) -> {
+                return b.distanceSquaredTo(rc.getLocation()) - a.distanceSquaredTo(rc.getLocation());
+            }); // yes this is supposed to be sorted furthest first
         if(possibleSenses.length > 0) {
-            swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
+            swarmTarget = possibleSenses[(int)Math.sqrt(rng.nextInt(possibleSenses.length * possibleSenses.length))];
             swarmEnd = rc.getRoundNum() + StrictMath.max(height, width) / 2;
             return swarmTarget;
         }
@@ -561,6 +563,7 @@ public strictfp class RobotPlayer {
         //if(!ok) return; // turned into weighting, see below
         if(rc.getCrumbs() >= 250 && rc.getRoundNum() >= 180) {
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+            if(visibleEnemies.length == 0) return;
             // Calculate number of nearby traps
             int nearbyTraps = 0;
             for (MapInfo mi : mapInfos) {
@@ -1006,6 +1009,7 @@ public strictfp class RobotPlayer {
             }
             for (Direction choice: choices) {
                 MapLocation next = loc.add(choice);
+                if(!rc.onTheMap(next)) continue;
                 int j = bfsArr[next.x][next.y];
                 if (j > 0) {
                     Direction nextDir = directions[j - 1];
@@ -1394,7 +1398,7 @@ public strictfp class RobotPlayer {
                             }
                         }
                     }
-                    lastFlag = (rc.senseBroadcastFlagLocations().length + oppFlags.length)<=1;
+                    lastFlag = (rc.senseBroadcastFlagLocations().length + oppFlags.length) <= 1 || round >= 1750;
                     if (lastFlag) debug("LAST FLAG");
                     for (FlagInfo flag: rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
                         if (flag.isPickedUp() && lastFlag) {
