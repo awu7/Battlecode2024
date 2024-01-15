@@ -1,5 +1,7 @@
 package OldRushBot;
 
+import java.util.Random;
+
 public class UnrolledUtils {
     /**
      * Helper function to fill an array with a value.
@@ -133,6 +135,15 @@ public class UnrolledUtils {
             case 3: arr1[2] = arr2[2];
             case 2: arr1[1] = arr2[1];
             case 1: arr1[0] = arr2[0];
+        }
+    }
+
+    public static <T> void shuffle(T[] arr, Random rng) {
+        for (int i = arr.length - 1; i >= 1; --i) {
+            int j = rng.nextInt(i);
+            T temp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = temp;
         }
     }
 }
