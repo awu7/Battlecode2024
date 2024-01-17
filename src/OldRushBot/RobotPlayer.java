@@ -49,7 +49,7 @@ public strictfp class RobotPlayer {
             Direction.SOUTH,
             Direction.WEST,
     };
-    static final String[] dirStrs = {"↑", "→", "↓", "←", "↗", "↘", "↙", "↖"};
+    static final String[] dirStrs = {};
     static final Direction[] trapDirs = {
             Direction.SOUTHEAST,
             Direction.NORTHEAST,
@@ -74,7 +74,7 @@ public strictfp class RobotPlayer {
         List<MapLocation> currStuns = new ArrayList<MapLocation>();
         MapInfo[] mapInfos = rc.senseNearbyMapInfos(-1);
         for (MapInfo mi : mapInfos) {
-            if (mi.getTrapType() == TrapType.STUN) {
+            if (mi.getTrapType() == TrapType.STUN || mi.getTrapType() == TrapType.EXPLOSIVE) {
                 currStuns.add(mi.getMapLocation());
             }
         }
@@ -162,7 +162,7 @@ public strictfp class RobotPlayer {
     static boolean bfsDone = false;
     static int bfsIdx = -2;
     static int internalIdx = 0;
-
+    
     static int[][] centreBfs, spawnBfs, flag0Bfs, flag1Bfs, flag2Bfs;
     public enum BfsTarget {
         CENTRE,
@@ -259,17 +259,28 @@ public strictfp class RobotPlayer {
         RobotInfo nextLocRobot;
         boolean triedOtherDir = false;
         boolean hasFlag = rc.hasFlag() || rc.canPickupFlag(rc.getLocation());
+        boolean fillableWater;
         while(stackSize < 8) {
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
+            boolean allowFillNext = (nextLoc.x % 2) == (nextLoc.y % 2);
+            boolean nearWall = false;
+            boolean hasCrumbs = rc.senseNearbyCrumbs(0).length > 0;
+            for (MapInfo mi : rc.senseNearbyMapInfos(nextLoc, 2)) {
+                if (mi.isWall() || mi.isDam()) {
+                    nearWall = true;
+                    break;
+                }
+            }
+            fillableWater = (nearWall || allowFillNext || hasCrumbs) && rc.canFill(nextLoc);
             if(rc.onTheMap(nextLoc)) {
                 if(!moveCooldownDone) {
                     // if it's not a wall, and if there's water we can fill it
-                    if (!rc.senseMapInfo(nextLoc).isWall() && (!rc.senseMapInfo(nextLoc).isWater() || !hasFlag)) {
+                    if (!rc.senseMapInfo(nextLoc).isWall() && (fillableWater || !hasFlag)) {
                         break;
                     }
                 } else {
                     // if we can move there, or if we can fill it
-                    if (rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !hasFlag)) {
+                    if (rc.canMove(stack[stackSize - 1]) || (fillableWater && !hasFlag)) {
                         break;
                     }
                 }
@@ -296,7 +307,17 @@ public strictfp class RobotPlayer {
         }
         Direction dir = stack[stackSize - 1];
         nextLoc = rc.getLocation().add(dir);
-        if (rc.canFill(nextLoc) && !hasFlag) {
+        boolean allowFillNext = (nextLoc.x % 2) == (nextLoc.y % 2);
+        boolean nearWall = false;
+        boolean hasCrumbs = rc.senseNearbyCrumbs(0).length > 0;
+        for (MapInfo mi : rc.senseNearbyMapInfos(nextLoc, 2)) {
+            if (mi.isWall() || mi.isDam() || hasCrumbs) {
+                nearWall = true;
+                break;
+            }
+        }
+        fillableWater = (nearWall || allowFillNext) && rc.canFill(nextLoc);
+        if (fillableWater && !hasFlag) {
             rc.fill(nextLoc);
         }
         if(rc.canMove(dir)) {
@@ -362,7 +383,6 @@ public strictfp class RobotPlayer {
                     return f.getLocation();
                 }
             }
-            return friendlyFlags[0].getLocation();
         }
         FlagInfo[] possibleFlags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
         MapLocation[] flagLocs = new MapLocation[possibleFlags.length];
@@ -388,8 +408,11 @@ public strictfp class RobotPlayer {
         if(rc.onTheMap(swarmTarget)) return swarmTarget;
         // System.out.println("Swarm retargeted");
         MapLocation[] possibleSenses = rc.senseBroadcastFlagLocations();
+        Arrays.sort(possibleSenses, (MapLocation a, MapLocation b) -> {
+                return b.distanceSquaredTo(rc.getLocation()) - a.distanceSquaredTo(rc.getLocation());
+            }); // yes this is supposed to be sorted furthest first
         if(possibleSenses.length > 0) {
-            swarmTarget = possibleSenses[rng.nextInt(possibleSenses.length)];
+            swarmTarget = possibleSenses[(int)Math.sqrt(rng.nextInt(possibleSenses.length * possibleSenses.length))];
             swarmEnd = rc.getRoundNum() + StrictMath.max(height, width) / 2;
             return swarmTarget;
         }
@@ -501,6 +524,7 @@ public strictfp class RobotPlayer {
     static void farmBuildXp() throws GameActionException {
         if(rc.getLevel(SkillType.BUILD) < 6) {
             for(Direction d : directions) {
+                if ((rc.adjacentLocation(d).x%2) == (rc.adjacentLocation(d).y%2)) continue;
                 if(rc.canDig(rc.getLocation().add(d))) rc.dig(rc.getLocation().add(d));
             }
         }
@@ -561,6 +585,7 @@ public strictfp class RobotPlayer {
         //if(!ok) return; // turned into weighting, see below
         if(rc.getCrumbs() >= 250 && rc.getRoundNum() >= 180) {
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+            if(visibleEnemies.length == 0) return;
             // Calculate number of nearby traps
             int nearbyTraps = 0;
             for (MapInfo mi : mapInfos) {
@@ -572,6 +597,7 @@ public strictfp class RobotPlayer {
             for(Direction d : Direction.values()) {
                 boolean adjTrap = false;
                 boolean veryCloseTrap = false;
+                if(!rc.onTheMap(rc.getLocation().add(d))) continue;
                 for(MapInfo m : rc.senseNearbyMapInfos(rc.getLocation().add(d), 5)) {
                     if(m.getTrapType() != TrapType.NONE) {
                         adjTrap = true;
@@ -985,6 +1011,7 @@ public strictfp class RobotPlayer {
     }
 
     public static void moveBfsUtil(int[][] bfsArr, BfsTarget target) throws GameActionException {
+        //printBoard();
         if (!rc.isMovementReady()) {
             return;
         }
@@ -1006,6 +1033,7 @@ public strictfp class RobotPlayer {
             }
             for (Direction choice: choices) {
                 MapLocation next = loc.add(choice);
+                if(!rc.onTheMap(next)) continue;
                 int j = bfsArr[next.x][next.y];
                 if (j > 0) {
                     Direction nextDir = directions[j - 1];
@@ -1328,85 +1356,85 @@ public strictfp class RobotPlayer {
                 RobotInfo[] enemies = rc.senseNearbyRobots(9, rc.getTeam().opponent());
                 MapLocation[] enemyLocs = new MapLocation[enemies.length];
                 for (int i = 0; i < enemies.length; ++i) enemyLocs[i] = enemies[i].getLocation();
-                if (oppFlags.length > 0) {
-                    if (rc.hasFlag()) {
-                        if (enemies.length > 0 && false) {
-                            rc.move(rc.getLocation().directionTo(closest(enemyLocs)).opposite());
-                        } else {
-                            moveBfs(BfsTarget.SPAWN);
-                        }
-                        continue;
-                    }
-                    UnrolledUtils.shuffle(oppFlags, rng);
-                    for (FlagInfo flag: oppFlags) {
-                        if (!flag.isPickedUp()) {
-                            MapLocation loc = flag.getLocation();
-                            MapLocation[] next = {};
-                            if (spawnBfs != null) {
-                                int i = spawnBfs[loc.x][loc.y];
-                                if (i > 0) {
-                                    Direction opt = directions[i - 1];
-                                    next = new MapLocation[]{loc.add(opt), loc.add(opt.rotateLeft()), loc.add(opt.rotateRight())};
-                                }
-                            }
+                // if (oppFlags.length > 0) {
+                //     if (rc.hasFlag()) {
+                //         if (enemies.length > 0 && false) {
+                //             rc.move(rc.getLocation().directionTo(closest(enemyLocs)).opposite());
+                //         } else {
+                //             moveBfs(BfsTarget.SPAWN);
+                //         }
+                //         continue;
+                //     }
+                //     UnrolledUtils.shuffle(oppFlags, rng);
+                //     for (FlagInfo flag: oppFlags) {
+                //         if (!flag.isPickedUp()) {
+                //             MapLocation loc = flag.getLocation();
+                //             MapLocation[] next = {};
+                //             if (spawnBfs != null) {
+                //                 int i = spawnBfs[loc.x][loc.y];
+                //                 if (i > 0) {
+                //                     Direction opt = directions[i - 1];
+                //                     next = new MapLocation[]{loc.add(opt), loc.add(opt.rotateLeft()), loc.add(opt.rotateRight())};
+                //                 }
+                //             }
 
-                            // first, see if we're in an optimal position to pick it up
-                            boolean canPickup = rc.canPickupFlag(loc);
-                            if (canPickup) {
-                                for (MapLocation nextLoc : next) {
-                                    if (rc.getLocation().equals(nextLoc)) {
-                                        rc.pickupFlag(loc);
-                                        break;
-                                    }
-                                }
-                            }
+                //             // first, see if we're in an optimal position to pick it up
+                //             boolean canPickup = rc.canPickupFlag(loc);
+                //             if (canPickup) {
+                //                 for (MapLocation nextLoc : next) {
+                //                     if (rc.getLocation().equals(nextLoc)) {
+                //                         rc.pickupFlag(loc);
+                //                         break;
+                //                     }
+                //                 }
+                //             }
 
-                            if (!rc.hasFlag()) {
-                                // second, check if another friend with HIGHER ID is in an optimal position to pick it up
-                                boolean canFriendPickup = true;
-                                for (MapLocation nextLoc : next) {
-                                    if (rc.onTheMap(nextLoc) && rc.canSenseLocation(nextLoc)) {
-                                        RobotInfo friend = rc.senseRobotAtLocation(nextLoc);
-                                        if (friend != null && friend.getTeam() == rc.getTeam() && idx[rc.getID() - 9999] > selfIdx) {
-                                            canFriendPickup = false;
-                                            break;
-                                        }
-                                    }
-                                }
+                //             if (!rc.hasFlag()) {
+                //                 // second, check if another friend with HIGHER ID is in an optimal position to pick it up
+                //                 boolean canFriendPickup = true;
+                //                 for (MapLocation nextLoc : next) {
+                //                     if (rc.onTheMap(nextLoc) && rc.canSenseLocation(nextLoc)) {
+                //                         RobotInfo friend = rc.senseRobotAtLocation(nextLoc);
+                //                         if (friend != null && friend.getTeam() == rc.getTeam() && idx[rc.getID() - 9999] > selfIdx) {
+                //                             canFriendPickup = false;
+                //                             break;
+                //                         }
+                //                     }
+                //                 }
 
-                                if (!canFriendPickup) {
-                                    // then, try move to an optimal position to pick it up
-                                    for (MapLocation nextLoc: next) {
-                                        if (rc.onTheMap(nextLoc) && rc.canSenseLocation(nextLoc)) {
-                                            Direction dir = rc.getLocation().directionTo(nextLoc);
-                                            if (rc.adjacentLocation(dir).equals(nextLoc) && rc.canMove(dir)) {
-                                                rc.move(dir);
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    // if unable to move to an optimal position, don't bother
-                                    // at such short distances, BugNav might produce unexpected behaviours
+                //                 if (!canFriendPickup) {
+                //                     // then, try move to an optimal position to pick it up
+                //                     for (MapLocation nextLoc: next) {
+                //                         if (rc.onTheMap(nextLoc) && rc.canSenseLocation(nextLoc)) {
+                //                             Direction dir = rc.getLocation().directionTo(nextLoc);
+                //                             if (rc.adjacentLocation(dir).equals(nextLoc) && rc.canMove(dir)) {
+                //                                 rc.move(dir);
+                //                                 break;
+                //                             }
+                //                         }
+                //                     }
+                //                     // if unable to move to an optimal position, don't bother
+                //                     // at such short distances, BugNav might produce unexpected behaviours
 
-                                    // pickup the flag, at last
-                                    rc.pickupFlag(loc);
-                                }
-                            }
-                        }
-                    }
-                    lastFlag = (rc.senseBroadcastFlagLocations().length + oppFlags.length)<=1;
-                    if (lastFlag) debug("LAST FLAG");
-                    for (FlagInfo flag: rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
-                        if (flag.isPickedUp() && lastFlag) {
-                            debug("LET'S SWARM");
-                            MapLocation loc = flag.getLocation();
-                            moveBetter(loc);
-                            if (rc.canSenseLocation(loc) && rc.canHeal(loc)) {
-                                rc.heal(loc);
-                            }
-                        }
-                    }
-                }
+                //                     // pickup the flag, at last
+                //                     rc.pickupFlag(loc);
+                //                 }
+                //             }
+                //         }
+                //     }
+                //     lastFlag = (rc.senseBroadcastFlagLocations().length + oppFlags.length) <= 1 || round >= 1750;
+                //     if (lastFlag) debug("LAST FLAG");
+                //     for (FlagInfo flag: rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
+                //         if (flag.isPickedUp() && lastFlag) {
+                //             debug("LET'S SWARM");
+                //             MapLocation loc = flag.getLocation();
+                //             moveBetter(loc);
+                //             if (rc.canSenseLocation(loc) && rc.canHeal(loc)) {
+                //                 rc.heal(loc);
+                //             }
+                //         }
+                //     }
+                // }
                 nearbyAllies = rc.senseNearbyRobots(-1, rc.getTeam());
                 pickupFlag(true);
                 // Find all triggered stun traps;
@@ -1492,7 +1520,7 @@ public strictfp class RobotPlayer {
                             // Choose the best choice
                             // Choices are either the safest, or safest where we can attack
                             MapLocation finalTargetCell = targetCell;
-                            if (rc.getHealth() < 750 && enemies.length > 0) {
+                            if (rc.getHealth() < 900 && enemies.length > 0) {
                                 debug("RETREAT");
                                 RobotInfo nearestEnemy = enemies[0];
                                 int nearestEnemyDistSquared = 1000;
@@ -1581,6 +1609,7 @@ public strictfp class RobotPlayer {
                 healFlagBearer();
                 attack();
                 buildTraps();
+                if (round > 1900) farmBuildXp();
                 heal();
                 if(rc.getCrumbs() > 5000) buildTraps();
             } catch (GameActionException e) {
