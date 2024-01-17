@@ -259,17 +259,28 @@ public strictfp class RobotPlayer {
         RobotInfo nextLocRobot;
         boolean triedOtherDir = false;
         boolean hasFlag = rc.hasFlag() || rc.canPickupFlag(rc.getLocation());
+        boolean fillableWater;
         while(stackSize < 8) {
             nextLoc = rc.getLocation().add(stack[stackSize - 1]);
+            boolean allowFillNext = (nextLoc.x % 2) == (nextLoc.y % 2);
+            boolean nearWall = false;
+            boolean hasCrumbs = rc.senseNearbyCrumbs(0).length > 0;
+            for (MapInfo mi : rc.senseNearbyMapInfos(nextLoc, 2)) {
+                if (mi.isWall() || mi.isDam()) {
+                    nearWall = true;
+                    break;
+                }
+            }
+            fillableWater = (nearWall || allowFillNext || hasCrumbs) && rc.canFill(nextLoc);
             if(rc.onTheMap(nextLoc)) {
                 if(!moveCooldownDone) {
                     // if it's not a wall, and if there's water we can fill it
-                    if (!rc.senseMapInfo(nextLoc).isWall() && (!rc.senseMapInfo(nextLoc).isWater() || !hasFlag)) {
+                    if (!rc.senseMapInfo(nextLoc).isWall() && (fillableWater || !hasFlag)) {
                         break;
                     }
                 } else {
                     // if we can move there, or if we can fill it
-                    if (rc.canMove(stack[stackSize - 1]) || (rc.senseMapInfo(nextLoc).isWater() && !hasFlag)) {
+                    if (rc.canMove(stack[stackSize - 1]) || (fillableWater && !hasFlag)) {
                         break;
                     }
                 }
@@ -296,7 +307,17 @@ public strictfp class RobotPlayer {
         }
         Direction dir = stack[stackSize - 1];
         nextLoc = rc.getLocation().add(dir);
-        if (rc.canFill(nextLoc) && !hasFlag) {
+        boolean allowFillNext = (nextLoc.x % 2) == (nextLoc.y % 2);
+        boolean nearWall = false;
+        boolean hasCrumbs = rc.senseNearbyCrumbs(0).length > 0;
+        for (MapInfo mi : rc.senseNearbyMapInfos(nextLoc, 2)) {
+            if (mi.isWall() || mi.isDam() || hasCrumbs) {
+                nearWall = true;
+                break;
+            }
+        }
+        fillableWater = (nearWall || allowFillNext) && rc.canFill(nextLoc);
+        if (fillableWater && !hasFlag) {
             rc.fill(nextLoc);
         }
         if(rc.canMove(dir)) {
@@ -503,6 +524,7 @@ public strictfp class RobotPlayer {
     static void farmBuildXp() throws GameActionException {
         if(rc.getLevel(SkillType.BUILD) < 6) {
             for(Direction d : directions) {
+                if ((rc.adjacentLocation(d).x%2) == (rc.adjacentLocation(d).y%2)) continue;
                 if(rc.canDig(rc.getLocation().add(d))) rc.dig(rc.getLocation().add(d));
             }
         }
@@ -988,6 +1010,7 @@ public strictfp class RobotPlayer {
     }
 
     public static void moveBfsUtil(int[][] bfsArr, BfsTarget target) throws GameActionException {
+        //printBoard();
         if (!rc.isMovementReady()) {
             return;
         }
@@ -1585,6 +1608,7 @@ public strictfp class RobotPlayer {
                 healFlagBearer();
                 attack();
                 buildTraps();
+                if (round > 1900) farmBuildXp();
                 heal();
                 if(rc.getCrumbs() > 5000) buildTraps();
             } catch (GameActionException e) {
