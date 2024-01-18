@@ -1,0 +1,25 @@
+package RushBot;
+
+import battlecode.common.MapLocation;
+
+public class ActiveStun {
+    public MapLocation location = null;
+    public int roundsLeft;
+
+    public ActiveStun(MapLocation locIn) {
+        location = locIn;
+        roundsLeft = 4;
+    }
+
+    /**
+     * Returns false if this stun is ineffective after updating,
+     * otherwise true
+     */
+    public boolean updateRound() {
+        roundsLeft--;
+        if (roundsLeft <= 0) {
+            return false;
+        }
+        return true;
+    }
+}
