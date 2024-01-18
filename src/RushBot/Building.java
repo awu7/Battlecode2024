@@ -31,7 +31,7 @@ public class Building {
         // CR in this context is chance reciprocal
         int wallCR = (ok)?0:100; // Instead of outright cancel, make it a weighting
         int nearbyTrapCR = 50+nearbyTraps*100;
-        int dissuadeEdgeCR = 71 - 10 * StrictMath.min(RobotUtils.distFromEdge(V.rc.getLocation()), 7);
+        //int dissuadeEdgeCR = 71 - 10 * StrictMath.min(RobotUtils.distFromEdge(V.rc.getLocation()), 7);
         int nearbyEnemiesCR = StrictMath.max(100 - (50 * visibleEnemies.length), 1);
         int chanceReciprocal = StrictMath.min(nearbyTrapCR, nearbyEnemiesCR) + wallCR;// + dissuadeEdgeCR;
         if((!veryCloseTrap || chosenTrap == TrapType.EXPLOSIVE) && (!adjTrap || V.rc.getCrumbs() > 5000 || nearbyEnemiesCR <= 2) && V.rc.canBuild(chosenTrap, loc) && V.rng.nextInt(chanceReciprocal) == 0) {
@@ -65,7 +65,7 @@ public class Building {
                 }
             }
             for(Direction d : Direction.values()) {
-                if(V.rc.senseMapInfo(V.rc.adjacentLocation(d)).isWater()) continue;
+                if(V.rc.onTheMap(V.rc.adjacentLocation(d)) && V.rc.senseMapInfo(V.rc.adjacentLocation(d)).isWater()) continue;
                 tryBuildTrap(V.rc.adjacentLocation(d), visibleEnemies, nearbyTraps, ok);
             }
             for(Direction d : Direction.values()) {

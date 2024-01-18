@@ -8,6 +8,7 @@ import java.util.*;
 public strictfp class RobotPlayer {
     public static void run(RobotController _rc) throws GameActionException {
         V.rc = _rc;
+        RobotUtils.init();
         while (true) {
             try {
                 V.round = V.rc.getRoundNum();
@@ -289,7 +290,7 @@ public strictfp class RobotPlayer {
                                     return V.rc.getLocation().add(a).distanceSquaredTo(finaltargetCell) - V.rc.getLocation().add(b).distanceSquaredTo(finaltargetCell);
                                 });
                             }
-                            V.rc.move(choices[0]);
+                            if (V.rc.canMove(choices[0])) V.rc.move(choices[0]);
                         } else {
                             // There are no choices
                             RobotUtils.shuffle(V.shuffledDirections);
