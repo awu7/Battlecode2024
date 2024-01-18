@@ -122,4 +122,9 @@ public class V {
         FLAG1,
         FLAG2
     }
+
+    static MapLocation swarmTarget;
+    static int swarmEnd = 0;
+
+    static MapLocation targetCell;
 }

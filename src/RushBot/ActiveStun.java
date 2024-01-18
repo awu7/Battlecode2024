@@ -8,7 +8,7 @@ public class ActiveStun {
 
     public ActiveStun(MapLocation locIn) {
         location = locIn;
-        roundsLeft = 4;
+        roundsLeft = 5;
     }
 
     /**

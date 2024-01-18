@@ -137,13 +137,4 @@ public class UnrolledUtils {
             case 1: arr1[0] = arr2[0];
         }
     }
-
-    public static <T> void shuffle(T[] arr, Random rng) {
-        for (int i = arr.length - 1; i >= 1; --i) {
-            int j = rng.nextInt(i);
-            T temp = arr[i];
-            arr[i] = arr[j];
-            arr[j] = temp;
-        }
-    }
 }
