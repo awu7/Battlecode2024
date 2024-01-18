@@ -512,9 +512,9 @@ public strictfp class RobotPlayer {
             int x = square.getMapLocation().x;
             int y = square.getMapLocation().y;
             if (board[x][y] == 0) {
-                if (square.getSpawnZoneTeam() == rc.getTeam()) {
+                if (square.getSpawnZoneTeamObject() == rc.getTeam()) {
                     board[x][y] = 3;
-                } else if (square.getSpawnZoneTeam() == rc.getTeam().opponent()) {
+                } else if (square.getSpawnZoneTeamObject() == rc.getTeam().opponent()) {
                     board[x][y] = 4;
                 } else if (square.isWall()) {
                     board[x][y] = 2;

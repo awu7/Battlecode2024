@@ -177,7 +177,7 @@ public strictfp class RobotPlayer {
                             }
                         }
                         for (MapInfo mapInfo : mapInfos) {
-                            if (mapInfo.getSpawnZoneTeam() == rc.getTeam()) {
+                            if (mapInfo.getSpawnZoneTeamObject() == rc.getTeam()) {
                                 if (mapInfo.getTrapType() == TrapType.NONE) {
                                     MapLocation loc = mapInfo.getMapLocation();
                                     shuffle();

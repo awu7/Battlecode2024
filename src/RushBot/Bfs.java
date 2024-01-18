@@ -28,9 +28,9 @@ public class Bfs {
             int x = square.getMapLocation().x;
             int y = square.getMapLocation().y;
             if (V.board[x][y] == 0) {
-                if (square.getSpawnZoneTeam() == V.rc.getTeam()) {
+                if (square.getSpawnZoneTeamObject() == V.rc.getTeam()) {
                     V.board[x][y] = 3;
-                } else if (square.getSpawnZoneTeam() == V.rc.getTeam().opponent()) {
+                } else if (square.getSpawnZoneTeamObject() == V.rc.getTeam().opponent()) {
                     V.board[x][y] = 4;
                 } else if (square.isWall()) {
                     V.board[x][y] = 2;

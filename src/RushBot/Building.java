@@ -49,7 +49,7 @@ public class Building {
             }
         }
         for(MapInfo m : V.rc.senseNearbyMapInfos(2)) {
-            if(m.isSpawnZone() && m.getSpawnZoneTeam() != V.rc.getTeam()) {
+            if(m.isSpawnZone() && m.getSpawnZoneTeamObject() != V.rc.getTeam()) {
                 ok = true;
             }
         }
