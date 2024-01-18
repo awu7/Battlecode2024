@@ -605,7 +605,7 @@ public strictfp class RobotPlayer {
             }
         }
         for(MapInfo m : rc.senseNearbyMapInfos(2)) {
-            if(m.isSpawnZone() && m.getSpawnZoneTeam() != team) {
+            if(m.isSpawnZone() && m.getSpawnZoneTeam() != rc.getTeam()) {
                 ok = true;
             }
         }
@@ -737,9 +737,9 @@ public strictfp class RobotPlayer {
             int x = square.getMapLocation().x;
             int y = square.getMapLocation().y;
             if (board[x][y] == 0) {
-                if (square.getSpawnZoneTeam() == team) {
+                if (square.getSpawnZoneTeam() == rc.getTeam()) {
                     board[x][y] = 3;
-                } else if (square.getSpawnZoneTeam() == 3 - team) {
+                } else if (square.getSpawnZoneTeam() == rc.getTeam().opponent()) {
                     board[x][y] = 4;
                 } else if (square.isWall()) {
                     board[x][y] = 2;
@@ -1120,8 +1120,8 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void buyGlobal() throws GameActionException {
-        if (rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
-            rc.buyGlobal(GlobalUpgrade.ACTION);
+        if (rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
+            rc.buyGlobal(GlobalUpgrade.ATTACK);
         }
         if (rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
             rc.buyGlobal(GlobalUpgrade.HEALING);

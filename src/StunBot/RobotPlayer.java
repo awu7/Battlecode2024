@@ -158,8 +158,8 @@ public strictfp class RobotPlayer {
                         }
                         moveTowards(nextLoc);
                     } else {
-                        if (rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
-                            rc.buyGlobal(GlobalUpgrade.ACTION);
+                        if (rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
+                            rc.buyGlobal(GlobalUpgrade.ATTACK);
                         }
                         MapLocation[] spawns = rc.getAllySpawnLocations();
                         MapInfo[] mapInfos = rc.senseNearbyMapInfos(-1);
@@ -177,7 +177,7 @@ public strictfp class RobotPlayer {
                             }
                         }
                         for (MapInfo mapInfo : mapInfos) {
-                            if (mapInfo.getSpawnZoneTeam() == team) {
+                            if (mapInfo.getSpawnZoneTeam() == rc.getTeam()) {
                                 if (mapInfo.getTrapType() == TrapType.NONE) {
                                     MapLocation loc = mapInfo.getMapLocation();
                                     shuffle();
