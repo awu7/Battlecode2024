@@ -75,6 +75,17 @@ public strictfp class RobotPlayer {
                     CrumbFinding.randomWalk();
                     continue;
                 }
+                if(V.isBuilder) {
+                    Building.buildTraps();
+                    Building.farmBuildXp(4);
+                    Building.farmBuildXp(4);
+                    Building.farmBuildXp(4);
+                    Building.farmBuildXp(4);
+                }
+                if(V.rc.senseNearbyFlags(0).length == 0) {
+                    Healing.healFlagBearer();
+                    Attacking.attack();
+                }
                 Movement.AllMovements();
                 Capture.pickupFlag(true);
                 Healing.healFlagBearer();
