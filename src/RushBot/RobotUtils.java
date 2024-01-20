@@ -96,6 +96,10 @@ public class RobotUtils {
         return a == 3 || b == 3 || a == b;
     }
 
+    public static boolean maybeOppSpawn(int a) {
+        return a == 3 || a == 0;
+    }
+
     public static <T> void shuffle(T[] arr) {
         for (int i = arr.length - 1; i >= 1; --i) {
             int j = V.rng.nextInt(i);
