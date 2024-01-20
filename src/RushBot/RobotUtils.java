@@ -73,9 +73,11 @@ public class RobotUtils {
     /**
      * Helper function attempting to buy global upgrades.
      * Priority:
-     * 1. <code>GlobalUpgrade.ATTACK</code>
-     * 2. <code>GlobalUpgrade.HEALING</code>
-     * 3. <code>GlobalUpgrade.CAPTURING</code>
+     * <ol>
+     * <li><code>GlobalUpgrade.ATTACK</code></li>
+     * <li><code>GlobalUpgrade.HEALING</code></li>
+     * <li><code>GlobalUpgrade.CAPTURING</code></li>
+     * </ol>
      * @throws GameActionException
      */
     public static void buyGlobal() throws GameActionException {
@@ -91,19 +93,7 @@ public class RobotUtils {
     }
 
     public static boolean sameTile(int a, int b) {
-        if (a == 0 || b == 0) {
-            return true;
-        }
-        if (a == b && !(a == 3 || a == 4)) {
-            return true;
-        }
-        if (a == 3 && b == 4) {
-            return true;
-        }
-        if (a == 4 && b == 3) {
-            return true;
-        }
-        return false;
+        return a == 3 || b == 3 || a == b;
     }
 
     public static <T> void shuffle(T[] arr) {
@@ -123,14 +113,21 @@ public class RobotUtils {
         V.widthMinus1 = V.width - 1;
         V.widthMinus2 = V.width - 2;
         V.widthMinus3 = V.width - 3;
+        V.widthPlus1 = V.width + 1;
         V.heightMinus1 = V.height - 1;
         V.heightMinus2 = V.height - 2;
         V.heightMinus3 = V.height - 3;
+        V.heightPlus1 = V.height + 1;
+        V.heightPlus2 = V.height + 2;
         V.centre = new MapLocation(V.width / 2, V.height / 2);
-        V.board = new int[V.width][V.height];
+        V.board = new int[V.width][];
+        for (int x = V.width; --x >= 0;) {
+            UnrolledUtils.fill(V.board[x] = new int[V.height], 3);
+        }
         for (MapLocation spawn: V.rc.getAllySpawnLocations()) {
             V.board[spawn.x][spawn.y] = 3;
         }
+        V.id = V.rc.getID();
     }
 
     public static void endRound() {
@@ -141,20 +138,9 @@ public class RobotUtils {
         RobotUtils.debug("SS: " + String.valueOf(V.stackSize));
         V.rc.setIndicatorString(V.indicatorString);
         V.indicatorString = "";
-    }
-
-    public static void printBoard() {
-        for (int y = V.height - 1; y >= 0; --y) {
-            StringBuilder row = new StringBuilder();
-            for (int x = 0; x < V.width; ++x) {
-//                if (optimal[x][y] < 10) row.append(' ');
-//                if (optimal[x][y] < 0) row.append(' ');
-//                else row.append(optimal[x][y]);
-                row.append(" ");
-                if (V.spawnBfs[x][y] == 0) row.append(" ");
-                else row.append(V.dirStrs[V.spawnBfs[x][y] - 1]);
-            }
-            System.out.println(row);
+        int round = V.rc.getRoundNum();
+        if (round != V.round) {
+            System.out.println("Overflow! " + V.round + " -> " + round);
         }
     }
 

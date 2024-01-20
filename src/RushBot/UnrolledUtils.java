@@ -1,6 +1,10 @@
 package RushBot;
 
+import battlecode.common.GameActionException;
+import battlecode.common.RobotController;
+
 import java.util.Random;
+import java.util.function.BiConsumer;
 
 public class UnrolledUtils {
     /**
@@ -136,5 +140,59 @@ public class UnrolledUtils {
             case 2: arr1[1] = arr2[1];
             case 1: arr1[0] = arr2[0];
         }
+    }
+
+    public static void clearSharedArray() throws GameActionException {
+        RobotController local = V.rc;
+        local.writeSharedArray(0, 0);
+        local.writeSharedArray(1, 0);
+        local.writeSharedArray(2, 0);
+        local.writeSharedArray(3, 0);
+        local.writeSharedArray(4, 0);
+        local.writeSharedArray(5, 0);
+        local.writeSharedArray(6, 0);
+        local.writeSharedArray(7, 0);
+        local.writeSharedArray(8, 0);
+        local.writeSharedArray(9, 0);
+        local.writeSharedArray(10, 0);
+        local.writeSharedArray(11, 0);
+        local.writeSharedArray(12, 0);
+        local.writeSharedArray(13, 0);
+        local.writeSharedArray(14, 0);
+        local.writeSharedArray(15, 0);
+        local.writeSharedArray(16, 0);
+        local.writeSharedArray(17, 0);
+        local.writeSharedArray(18, 0);
+        local.writeSharedArray(19, 0);
+        local.writeSharedArray(20, 0);
+        local.writeSharedArray(21, 0);
+        local.writeSharedArray(22, 0);
+        local.writeSharedArray(23, 0);
+        local.writeSharedArray(24, 0);
+        local.writeSharedArray(25, 0);
+        local.writeSharedArray(26, 0);
+        local.writeSharedArray(27, 0);
+        local.writeSharedArray(28, 0);
+        local.writeSharedArray(29, 0);
+        local.writeSharedArray(30, 0);
+        local.writeSharedArray(31, 0);
+        local.writeSharedArray(32, 0);
+        local.writeSharedArray(33, 0);
+        local.writeSharedArray(34, 0);
+        local.writeSharedArray(35, 0);
+        local.writeSharedArray(36, 0);
+        local.writeSharedArray(37, 0);
+        local.writeSharedArray(38, 0);
+        local.writeSharedArray(39, 0);
+        local.writeSharedArray(40, 0);
+        local.writeSharedArray(41, 0);
+        local.writeSharedArray(42, 0);
+        local.writeSharedArray(43, 0);
+        local.writeSharedArray(44, 0);
+        local.writeSharedArray(45, 0);
+        local.writeSharedArray(46, 0);
+        local.writeSharedArray(47, 0);
+        local.writeSharedArray(48, 0);
+        local.writeSharedArray(49, 0);
     }
 }

@@ -3,12 +3,15 @@ package RushBot;
 import battlecode.common.*;
 
 public class IDCompression {
+    public static void init() {
+        V.ids = new int[50];
+        V.idx = new int[4097];
+    }
+
     public static void writeID() throws GameActionException {
-        int i = 0;
-        while (V.rc.readSharedArray(i) > 0) {
-            i++;
-        }
-        V.rc.writeSharedArray(i, V.rc.getID() - 9999);
+        int i = -1;
+        while (V.rc.readSharedArray(++i) > 0);
+        V.rc.writeSharedArray(i, V.id - 10000);
     }
 
     public static void readIDs() throws GameActionException {
@@ -16,7 +19,7 @@ public class IDCompression {
             int id = V.rc.readSharedArray(i);
             V.ids[i] = id;
             V.idx[id] = i;
-            if (id + 9999 == V.rc.getID()) {
+            if (id + 10000 == V.id) {
                 V.selfIdx = i;
             }
         }

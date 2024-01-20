@@ -5,51 +5,60 @@ import battlecode.common.*;
 import java.lang.System;
 import java.util.*;
 
+@SuppressWarnings("unused")
 public strictfp class RobotPlayer {
-    public static void run(RobotController _rc) throws GameActionException {
+    public static void run(RobotController _rc) {
         V.rc = _rc;
         RobotUtils.init();
         while (true) {
             try {
                 V.round = V.rc.getRoundNum();
-                if (!V.rc.isSpawned()) {
+                if (!V.rc.isSpawned() && V.round != Consts.BFS_ROUND + 2 && V.round != Consts.BFS_ROUND + 3) {
                     Spawning.attemptSpawn();
-                    if (!V.rc.isSpawned()) {
-                        continue;
-                    }
                 }
                 if (V.round == 1) {
                     IDCompression.writeID();
+                    RobotUtils.shuffle(V.shuffledDirections);
+                    for (Direction dir : V.shuffledDirections) {
+                        if (V.rc.canMove(dir)) {
+                            if (!V.rc.senseMapInfo(V.rc.getLocation().add(dir)).isSpawnZone()) {
+                                V.rc.move(dir);
+                            }
+                        }
+                    }
+                    continue;
                 } else if (V.round == 2) {
+                    IDCompression.init();
                     IDCompression.readIDs();
                     if (V.selfIdx == 49) {
-                        for (int i = 0; i < 50; ++i) {
-                            V.rc.writeSharedArray(i, 0);
-                        }
+                        UnrolledUtils.clearSharedArray();
                     }
                     int f = 0;
-                    for (MapLocation m : V.rc.getAllySpawnLocations()){
+                    for (MapLocation m : V.rc.getAllySpawnLocations()) {
                         int adjCount = 0;
                         for(MapLocation m2 : V.rc.getAllySpawnLocations()) {
-                            if(Math.abs(m.x - m2.x) <= 1 && Math.abs(m.y - m2.y) <= 1) adjCount++;
+                            if (m.isAdjacentTo(m2)) adjCount++;
                         }
-                        if (adjCount == 9){
-                            V.spawnCentres[f] = m;
-                            f++;
+                        if (adjCount == 9) {
+                            V.spawnCentres[f++] = m;
                         }
                     }
-                    for(int i = 40; i < 43; i++) {
-                        if(V.ids[i] + 9999 == V.rc.getID()) V.home = V.spawnCentres[i - 40];
+                    if (V.selfIdx >= 37 && V.selfIdx <= 39) {
+                        V.isBuilder = true;
                     }
-                    for(int i = 37; i < 40; i++) {
-                        if(V.ids[i] + 9999 == V.rc.getID()) V.isBuilder = true;
+                    if (V.selfIdx >= 40 && V.selfIdx <= 42) {
+                        V.home = V.spawnCentres[V.selfIdx - 40];
                     }
+                    continue;
                 }
                 if (!Bfs.precomp()) {
                     // run out of bytecode
                     continue;
                 }
                 RobotUtils.buyGlobal();
+                if (!V.rc.isSpawned()) {
+                    continue;
+                }
                 if(V.rc.onTheMap(V.home)) {
                     if(!V.rc.getLocation().equals(V.home)) {
                         BugNav.moveBetter(V.home);

@@ -12,7 +12,7 @@ public class Capture {
             V.rc.pickupFlag(flagLoc);
             return;
         }
-        int i = V.spawnBfs != null ? V.spawnBfs[flagLoc.x][flagLoc.y] : 0;
+        int i = 0;
         if (i > 0) {
             Direction dir = V.directions[i - 1];
             for (Direction choice: new Direction[]{dir, dir.rotateLeft(), dir.rotateRight()}) {
