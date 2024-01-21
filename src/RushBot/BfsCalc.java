@@ -2,6 +2,7 @@ package RushBot;
 
 import battlecode.common.*;
 
+import java.util.Locale;
 import java.util.function.Consumer;
 
 public class BfsCalc {
@@ -240,5 +241,13 @@ public class BfsCalc {
             System.out.println('\n' + boardBuilder.toString().replace('0', ' '));
         }
         return q.length() == 0;
+    }
+
+    public int dist(MapLocation loc) {
+        if (!V.rc.onTheMap(loc)) {
+            return 10000;
+        }
+        int d = boardBuilder.charAt(loc.x * V.heightPlus1 + loc.y) - 'A';
+        return d < 0 ? 10000 : d;
     }
 }

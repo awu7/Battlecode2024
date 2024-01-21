@@ -132,6 +132,7 @@ public class RobotUtils {
             V.board[spawn.x][spawn.y] = 3;
         }
         V.id = V.rc.getID();
+        V.team = V.rc.getTeam();
     }
 
     public static void endRound() {

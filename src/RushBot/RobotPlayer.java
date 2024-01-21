@@ -82,12 +82,12 @@ public strictfp class RobotPlayer {
                     Building.farmBuildXp(4);
                     Building.farmBuildXp(4);
                 }
+                Capture.capture();
                 if(V.rc.senseNearbyFlags(0).length == 0) {
                     Healing.healFlagBearer();
                     Attacking.attack();
                 }
                 Movement.AllMovements();
-                Capture.pickupFlag(true);
                 Healing.healFlagBearer();
                 Attacking.attack();
                 if (V.round > 1900) Building.farmBuildXp(3);

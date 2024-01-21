@@ -2,98 +2,15 @@ package RushBot;
 
 import battlecode.common.*;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class Movement {
     public static void AllMovements() throws GameActionException {
-        //FlagInfo[] oppFlags = V.rc.senseNearbyFlags(-1, V.rc.getTeam().opponent());
-        //RobotInfo[] friends = V.rc.senseNearbyRobots(-1, V.rc.getTeam());
         RobotInfo[] enemies = V.rc.senseNearbyRobots(9, V.rc.getTeam().opponent());
-        MapLocation[] enemyLocs = new MapLocation[enemies.length];
-        for (int i = 0; i < enemies.length; ++i) enemyLocs[i] = enemies[i].getLocation();
-        // if (oppFlags.length > 0) {
-        //     if (V.rc.hasFlag()) {
-        //         if (enemies.length > 0 && false) {
-        //             V.rc.move(V.rc.getLocation().directionTo(closest(enemyLocs)).opposite());
-        //         } else {
-        //             moveBfs(BfsTarget.SPAWN);
-        //         }
-        //         continue;
-        //     }
-        //     UnrolledUtils.shuffle(oppFlags, rng);
-        //     for (FlagInfo flag: oppFlags) {
-        //         if (!flag.isPickedUp()) {
-        //             MapLocation loc = flag.getLocation();
-        //             MapLocation[] next = {};
-        //             if (spawnBfs != null) {
-        //                 int i = spawnBfs[loc.x][loc.y];
-        //                 if (i > 0) {
-        //                     Direction opt = directions[i - 1];
-        //                     next = new MapLocation[]{loc.add(opt), loc.add(opt.rotateLeft()), loc.add(opt.rotateRight())};
-        //                 }
-        //             }
-
-        //             // first, see if we're in an optimal position to pick it up
-        //             boolean canPickup = V.rc.canPickupFlag(loc);
-        //             if (canPickup) {
-        //                 for (MapLocation nextLoc : next) {
-        //                     if (V.rc.getLocation().equals(nextLoc)) {
-        //                         V.rc.pickupFlag(loc);
-        //                         break;
-        //                     }
-        //                 }
-        //             }
-
-        //             if (!V.rc.hasFlag()) {
-        //                 // second, check if another friend with HIGHER ID is in an optimal position to pick it up
-        //                 boolean canFriendPickup = true;
-        //                 for (MapLocation nextLoc : next) {
-        //                     if (V.rc.onTheMap(nextLoc) && V.rc.canSenseLocation(nextLoc)) {
-        //                         RobotInfo friend = V.rc.senseRobotAtLocation(nextLoc);
-        //                         if (friend != null && friend.getTeam() == V.rc.getTeam() && idx[V.rc.getID() - 9999] > selfIdx) {
-        //                             canFriendPickup = false;
-        //                             break;
-        //                         }
-        //                     }
-        //                 }
-
-        //                 if (!canFriendPickup) {
-        //                     // then, try move to an optimal position to pick it up
-        //                     for (MapLocation nextLoc: next) {
-        //                         if (V.rc.onTheMap(nextLoc) && V.rc.canSenseLocation(nextLoc)) {
-        //                             Direction dir = V.rc.getLocation().directionTo(nextLoc);
-        //                             if (V.rc.adjacentLocation(dir).equals(nextLoc) && V.rc.canMove(dir)) {
-        //                                 V.rc.move(dir);
-        //                                 break;
-        //                             }
-        //                         }
-        //                     }
-        //                     // if unable to move to an optimal position, don't bother
-        //                     // at such short distances, BugNav might produce unexpected behaviours
-
-        //                     // pickup the flag, at last
-        //                     V.rc.pickupFlag(loc);
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     lastFlag = (V.rc.senseBroadcastFlagLocations().length + oppFlags.length) <= 1 || round >= 1750;
-        //     if (lastFlag) RobotUtils.debug("LAST FLAG");
-        //     for (FlagInfo flag: V.rc.senseNearbyFlags(-1, V.rc.getTeam().opponent())) {
-        //         if (flag.isPickedUp() && lastFlag) {
-        //             RobotUtils.debug("LET'S SWARM");
-        //             MapLocation loc = flag.getLocation();
-        //             moveBetter(loc);
-        //             if (V.rc.canSenseLocation(loc) && V.rc.canHeal(loc)) {
-        //                 V.rc.heal(loc);
-        //             }
-        //         }
-        //     }
-        // }
         V.nearbyAllies = V.rc.senseNearbyRobots(-1, V.rc.getTeam());
-        Capture.pickupFlag(true);
         // Find all triggered stun traps;
         Building.updateStuns();
         V.targetCell = Targetting.findTarget();

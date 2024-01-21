@@ -62,8 +62,8 @@ public class V {
      * idx is a compressed mapping of each ID to its index in ids
      * ids is sorted by turn order.
      */
-    static int[] ids = new int[50];
-    static int[] idx = new int[10000];
+    static int[] ids;
+    static int[] idx;
     /**
      * [2, 31] = scouters, broadcasts everything seen in allocated spot in array.
      * [45, 49] = BFS bots, receives information from other bots and runs BFS in idle turns.
@@ -123,4 +123,6 @@ public class V {
     static int swarmEnd = 0;
 
     static MapLocation targetCell;
+
+    static Team team;
 }

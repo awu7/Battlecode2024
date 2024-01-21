@@ -8,8 +8,8 @@ import java.util.List;
 
 public class Movement {
     public static void AllMovements() throws GameActionException {
-        //FlagInfo[] oppFlags = V.rc.senseNearbyFlags(-1, V.rc.getTeam().opponent());
-        //RobotInfo[] friends = V.rc.senseNearbyRobots(-1, V.rc.getTeam());
+        FlagInfo[] oppFlags = V.rc.senseNearbyFlags(-1, V.rc.getTeam().opponent());
+        RobotInfo[] friends = V.rc.senseNearbyRobots(-1, V.rc.getTeam());
         RobotInfo[] enemies = V.rc.senseNearbyRobots(9, V.rc.getTeam().opponent());
         MapLocation[] enemyLocs = new MapLocation[enemies.length];
         for (int i = 0; i < enemies.length; ++i) enemyLocs[i] = enemies[i].getLocation();
@@ -96,6 +96,17 @@ public class Movement {
         Capture.pickupFlag(true);
         // Find all triggered stun traps;
         Building.updateStuns();
+        if(V.isBuilder) {
+            Building.buildTraps();
+            Building.farmBuildXp(4);
+            Building.farmBuildXp(4);
+            Building.farmBuildXp(4);
+            Building.farmBuildXp(4);
+        }
+        if(V.rc.senseNearbyFlags(0).length == 0) {
+            Healing.healFlagBearer();
+            Attacking.attack();
+        }
         V.targetCell = Targetting.findTarget();
         // Determine whether to move or not
         int nearbyHP = V.rc.getHealth();

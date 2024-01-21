@@ -1,6 +1,9 @@
 package RushBot;
 
 import battlecode.common.*;
+import scala.Int;
+
+import java.util.Arrays;
 
 public class Bfs {
     /**
@@ -50,6 +53,7 @@ public class Bfs {
         if (V.rc.onTheMap(loc = V.rc.getLocation().translate(-3, 2)) && V.rc.senseMapInfo(loc).isWall()) hash1 |= 1 << 15;
         V.rc.writeSharedArray(arrayIdx, hash1);
         V.rc.writeSharedArray(arrayIdx | 1, hash2);
+        V.rc.setIndicatorDot(V.rc.getLocation(), 0, 0, 255);
     }
 
     public static void decodeBroadcast(int arrIdx) throws GameActionException {
@@ -139,95 +143,46 @@ public class Bfs {
         V.rc.writeSharedArray(arrIdx, hash | (~hash & 0b111) << 3);
     }
 
-    public static void moveBfsUtil(int[][] bfsArr, V.BfsTarget target) throws GameActionException {
-        //printBoard();
+    public static void moveBfsUtil() throws GameActionException {
         if (!V.rc.isMovementReady()) {
             return;
         }
-        MapLocation loc = V.rc.getLocation();
-        RobotInfo[] friends = V.rc.senseNearbyRobots(-1, V.rc.getTeam());
-        int i = bfsArr != null ? bfsArr[loc.x][loc.y] : 0;
-        if (i > 0) {
-            RobotUtils.debug("Moving using bfs");
-            System.out.println("Moving using bfs");
-            Direction dir = V.directions[i - 1];
-            V.rc.setIndicatorLine(V.rc.getLocation(), loc.add(dir), 0, 0, 255);
-            Direction[] choices = i - 1 < 4 ? new Direction[]{dir, dir.rotateLeft(), dir.rotateRight()} : new Direction[]{dir};
-            for (Direction choice: choices) {
-                if (V.rc.canMove(choice)) {
-                    V.rc.move(choice);
-                    System.out.println("Moved to " + V.rc.getLocation().x + ", " + V.rc.getLocation().y + ": " + i);
-                    return;
+        if (V.spawnBfs == null) {
+            BugNav.moveBetter(RobotUtils.closest(V.rc.getAllySpawnLocations()));
+            return;
+        }
+        int curDist = V.spawnBfs.dist(V.rc.getLocation());
+        int[][] info = {{0, 0, 0}, {0, 0, 1}, {0, 0, 2}, {0, 0, 3}, {0, 0, 4}, {0, 0, 5}, {0, 0, 6}, {0, 0, 7}};
+        RobotUtils.shuffle(V.shuffledDirections);
+        for (int i = 8; --i >= 0;) {
+            MapLocation next = V.rc.adjacentLocation(V.shuffledDirections[info[i][2]]);
+            info[i][0] = V.spawnBfs.dist(next);
+            info[i][1] = 0;
+            for (RobotInfo enemy: V.rc.senseNearbyRobots(-1, V.team.opponent())) {
+                MapLocation enemyLoc = enemy.getLocation();
+                if (enemyLoc.isWithinDistanceSquared(next, 2)) {
+                    info[i][1] += 2;
+                } else if (enemyLoc.isWithinDistanceSquared(next, 8)) {
+                    info[i][1]++;
                 }
             }
-            for (Direction choice: choices) {
-                MapLocation next = loc.add(choice);
-                if(!V.rc.onTheMap(next)) continue;
-                int j = bfsArr[next.x][next.y];
-                if (j > 0) {
-                    Direction nextDir = V.directions[j - 1];
-                    for (Direction nextChoice: new Direction[]{nextDir, nextDir.rotateLeft(), nextDir.rotateRight()}) {
-                        MapLocation nextNext = next.add(nextChoice);
-                        if (V.rc.canDropFlag(nextNext)) {
-                            RobotInfo friend = V.rc.senseRobotAtLocation(nextNext);
-                            if (friend != null && friend.getTeam() == V.rc.getTeam()) {
-                                V.rc.dropFlag(next);
-                                RobotUtils.debug("Passed the flag to a spot");
-                                return;
-                            }
-                            System.out.println("No friend at " + nextNext.x + ", " + nextNext.y);
-                        } else System.out.println("Can't drop flag at " + nextNext.x + ", " + nextNext.y);
-                    }
-                }
-                if (V.rc.canDropFlag(next)) {
-                    RobotInfo friend = V.rc.senseRobotAtLocation(next);
-                    if (friend != null && friend.getTeam() == V.rc.getTeam()) {
-                        V.rc.dropFlag(next);
-                        RobotUtils.debug("Passed the flag in bfs");
-                        return;
-                    }
-                    System.out.println("No friend at " + next.x + ", " + next.y);
-                } else System.out.println("Can't drop flag at " + next.x + ", " + next.y);
+        }
+        Arrays.sort(info, (a, b) -> a[0] == b[0] ? a[1] - b[1] : a[0] - b[0]);
+        for (int i = 0; info[i][0] <= curDist; ++i) {
+            Direction dir = V.shuffledDirections[info[i][2]];
+            if (V.rc.canMove(dir)) {
+                V.rc.move(dir);
+                return;
+            }
+            MapLocation drop = V.rc.adjacentLocation(dir);
+            if (V.rc.canDropFlag(drop)) {
+                V.rc.dropFlag(drop);
+                return;
             }
         }
-        System.out.println("Can't bfs, defaulting");
-        switch (target) {
-            case CENTRE:
-                BugNav.moveBetter(V.centre);
-                break;
-            case SPAWN:
-                BugNav.moveBetter(RobotUtils.closest(V.rc.getAllySpawnLocations()));
-                break;
-            case FLAG0:
-            case FLAG1:
-            case FLAG2:
-                BugNav.moveBetter(new MapLocation(1, 1));
-                break;
-            default:
-                System.out.println("Something went wrong in moveBfsUtil()!");
+        if (V.rc.isMovementReady() && V.rc.isActionReady()) {
+            System.out.println("Didn't do anything?");
         }
-    }
-
-    public static void moveBfs(V.BfsTarget target) throws GameActionException {
-//        switch (target) {
-//            case CENTRE:
-//                moveBfsUtil(V.centreBfs, target);
-//                break;
-//            case SPAWN:
-//                moveBfsUtil(V.spawnBfs, target);
-//                break;
-//            case FLAG0:
-//                moveBfsUtil(V.flag0Bfs, target);
-//                break;
-//            case FLAG1:
-//                moveBfsUtil(V.flag1Bfs, target);
-//                break;
-//            case FLAG2:
-//                moveBfsUtil(V.flag2Bfs, target);
-//                break;
-//            default:
-//                System.out.println("Something went wrong in moveBfs()!");
-//        }
     }
 
     public static boolean precomp() throws GameActionException {
@@ -289,7 +244,6 @@ public class Bfs {
                 int hashi = V.rc.readSharedArray(i);
                 int info = hashi & 0b111;
                 if (hashi == (info | (~info & 0b111) << 3)) {
-                    System.out.println(i + " " + info);
                     hash &= info;
                 }
             }
