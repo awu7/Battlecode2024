@@ -3,7 +3,6 @@ package RushBot;
 import battlecode.common.*;
 
 import java.lang.System;
-import java.util.*;
 
 @SuppressWarnings("unused")
 public strictfp class RobotPlayer {
@@ -66,33 +65,40 @@ public strictfp class RobotPlayer {
                     }
                     if(V.rc.getLocation().equals(V.home)) Building.trapSpawn();
                 } else if (V.round <= 150) {
-                    if(V.isBuilder) {
-                        Building.farmBuildXp(6);
-                        Building.farmBuildXp(6);
-                        Building.farmBuildXp(6);
-                        Building.farmBuildXp(6);
-                    }
+//                    if(V.isBuilder) {
+//                        Building.farmBuildXp(6);
+//                        Building.farmBuildXp(6);
+//                        Building.farmBuildXp(6);
+//                        Building.farmBuildXp(6);
+//                    }
                     CrumbFinding.randomWalk();
                     continue;
                 }
-                if(V.isBuilder) {
-                    Building.buildTraps();
-                    Building.farmBuildXp(4);
-                    Building.farmBuildXp(4);
-                    Building.farmBuildXp(4);
-                    Building.farmBuildXp(4);
-                }
                 Capture.capture();
-                if(V.rc.senseNearbyFlags(0).length == 0) {
-                    Healing.healFlagBearer();
+                if (Attacking.attackFlag()) {
+                    Attacking.attackFlag();
+                }
+                if (V.round >= 200) {
+                    Building.buildTraps();
+                }
+//                if(V.isBuilder) {
+//                    Building.buildTraps();
+//                    Building.farmBuildXp(4);
+//                    Building.farmBuildXp(4);
+//                    Building.farmBuildXp(4);
+//                    Building.farmBuildXp(4);
+//                }
+                if (Attacking.attack()) {
                     Attacking.attack();
                 }
                 Movement.AllMovements();
-                Healing.healFlagBearer();
-                Attacking.attack();
+                if (Attacking.attack()) {
+                    Attacking.attack();
+                }
                 if (V.round > 1900) Building.farmBuildXp(3);
+//                if(V.rc.getCrumbs() > 5000) Building.buildTraps();
+                Healing.healFlag();
                 Healing.heal();
-                if(V.rc.getCrumbs() > 5000) Building.buildTraps();
             } catch (GameActionException e) {
                 System.out.println("GameActionException");
                 e.printStackTrace();

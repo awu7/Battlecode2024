@@ -14,62 +14,73 @@ public class Building {
             }
         }
     }
-
-    public static void tryBuildTrap(MapLocation loc, RobotInfo[] visibleEnemies, int nearbyTraps, boolean ok) throws GameActionException {
-        TrapType chosenTrap = V.rng.nextInt((visibleEnemies.length<=2)?5:2) == 0 ? TrapType.STUN : TrapType.EXPLOSIVE;
-        boolean adjTrap = false;
-        boolean veryCloseTrap = false;
-        if(!V.rc.onTheMap(loc)) return;
-        for(MapInfo m : V.rc.senseNearbyMapInfos(loc, 5)) {
-            if(m.getTrapType() != TrapType.NONE) {
-                adjTrap = true;
-                if (m.getMapLocation().distanceSquaredTo(loc) <= 2) {
-                    veryCloseTrap = true;
-                }
-            }
-        }
-        // CR in this context is chance reciprocal
-        int wallCR = (ok)?0:100; // Instead of outright cancel, make it a weighting
-        int nearbyTrapCR = 50+nearbyTraps*100;
-        //int dissuadeEdgeCR = 71 - 10 * StrictMath.min(RobotUtils.distFromEdge(V.rc.getLocation()), 7);
-        int nearbyEnemiesCR = StrictMath.max(100 - (50 * visibleEnemies.length), 1);
-        int chanceReciprocal = StrictMath.min(nearbyTrapCR, nearbyEnemiesCR) + wallCR;// + dissuadeEdgeCR;
-        if((!veryCloseTrap || chosenTrap == TrapType.EXPLOSIVE) && (!adjTrap || V.rc.getCrumbs() > 5000 || nearbyEnemiesCR <= 2) && V.rc.canBuild(chosenTrap, loc) && V.rng.nextInt(chanceReciprocal) == 0) {
-            V.rc.build(chosenTrap, loc);
-        }
-    }
-
+//
+//    public static void tryBuildTrap(MapLocation loc, RobotInfo[] visibleEnemies, int nearbyTraps, boolean ok) throws GameActionException {
+//        TrapType chosenTrap = V.rng.nextInt((visibleEnemies.length<=2)?5:2) == 0 ? TrapType.STUN : TrapType.STUN;
+//        boolean adjTrap = false;
+//        boolean veryCloseTrap = false;
+//        if(!V.rc.onTheMap(loc)) return;
+//        for(MapInfo m : V.rc.senseNearbyMapInfos(loc, 5)) {
+//            if(m.getTrapType() != TrapType.NONE) {
+//                adjTrap = true;
+//                if (m.getMapLocation().distanceSquaredTo(loc) <= 2) {
+//                    veryCloseTrap = true;
+//                }
+//            }
+//        }
+//        // CR in this context is chance reciprocal
+//        int wallCR = (ok)?0:100; // Instead of outright cancel, make it a weighting
+//        int nearbyTrapCR = 50+nearbyTraps*100;
+//        //int dissuadeEdgeCR = 71 - 10 * StrictMath.min(RobotUtils.distFromEdge(V.rc.getLocation()), 7);
+//        int nearbyEnemiesCR = StrictMath.max(100 - (50 * visibleEnemies.length), 1);
+//        int chanceReciprocal = StrictMath.min(nearbyTrapCR, nearbyEnemiesCR) + wallCR;// + dissuadeEdgeCR;
+//        if((!veryCloseTrap || chosenTrap == TrapType.EXPLOSIVE) && (!adjTrap || V.rc.getCrumbs() > 5000 || nearbyEnemiesCR <= 2) && V.rc.canBuild(chosenTrap, loc) && V.rng.nextInt(chanceReciprocal) == 0) {
+//            V.rc.build(chosenTrap, loc);
+//        }
+//    }
+//
+//    public static void buildTraps() throws GameActionException {
+//        boolean ok = true;
+//        MapInfo[] mapInfos = V.rc.senseNearbyMapInfos(3);
+//        for(MapInfo m : mapInfos) {
+//            if(m.isWall()) {
+//                ok = false;
+//                break;
+//            }
+//        }
+//        for(MapInfo m : V.rc.senseNearbyMapInfos(2)) {
+//            if(m.isSpawnZone() && m.getSpawnZoneTeamObject() != V.rc.getTeam()) {
+//                ok = true;
+//            }
+//        }
+//        //if(!ok) return; // turned into weighting, see below
+//        if(V.rc.getCrumbs() >= 250 && V.rc.getRoundNum() >= 180) {
+//            RobotInfo[] visibleEnemies = V.rc.senseNearbyRobots(-1, V.rc.getTeam().opponent());
+//            if(visibleEnemies.length == 0) return;
+//            // Calculate number of nearby traps
+//            int nearbyTraps = 0;
+//            for (MapInfo mi : mapInfos) {
+//                if (mi.getTrapType() != TrapType.NONE) {
+//                    ++nearbyTraps;
+//                }
+//            }
+//            for(Direction d : Direction.values()) {
+//                if(V.rc.onTheMap(V.rc.adjacentLocation(d)) && V.rc.senseMapInfo(V.rc.adjacentLocation(d)).isWater()) continue;
+//                tryBuildTrap(V.rc.adjacentLocation(d), visibleEnemies, nearbyTraps, ok);
+//            }
+//            for(Direction d : Direction.values()) {
+//                tryBuildTrap(V.rc.adjacentLocation(d), visibleEnemies, nearbyTraps, ok);
+//            }
+//        }
+//    }
     public static void buildTraps() throws GameActionException {
-        boolean ok = true;
-        MapInfo[] mapInfos = V.rc.senseNearbyMapInfos(3);
-        for(MapInfo m : mapInfos) {
-            if(m.isWall()) {
-                ok = false;
-                break;
-            }
-        }
-        for(MapInfo m : V.rc.senseNearbyMapInfos(2)) {
-            if(m.isSpawnZone() && m.getSpawnZoneTeamObject() != V.rc.getTeam()) {
-                ok = true;
-            }
-        }
-        //if(!ok) return; // turned into weighting, see below
-        if(V.rc.getCrumbs() >= 250 && V.rc.getRoundNum() >= 180) {
-            RobotInfo[] visibleEnemies = V.rc.senseNearbyRobots(-1, V.rc.getTeam().opponent());
-            if(visibleEnemies.length == 0) return;
-            // Calculate number of nearby traps
-            int nearbyTraps = 0;
-            for (MapInfo mi : mapInfos) {
-                if (mi.getTrapType() != TrapType.NONE) {
-                    ++nearbyTraps;
+        RobotUtils.shuffle(V.shuffledDirections);
+        for (Direction dir : V.shuffledDirections) {
+            MapLocation loc = V.rc.adjacentLocation(dir);
+            if (loc.x % 3 == 0 && loc.y % 3 == 0) {
+                if (V.rc.canBuild(TrapType.STUN, loc)) {
+                    V.rc.build(TrapType.STUN, loc);
                 }
-            }
-            for(Direction d : Direction.values()) {
-                if(V.rc.onTheMap(V.rc.adjacentLocation(d)) && V.rc.senseMapInfo(V.rc.adjacentLocation(d)).isWater()) continue;
-                tryBuildTrap(V.rc.adjacentLocation(d), visibleEnemies, nearbyTraps, ok);
-            }
-            for(Direction d : Direction.values()) {
-                tryBuildTrap(V.rc.adjacentLocation(d), visibleEnemies, nearbyTraps, ok);
             }
         }
     }
@@ -86,7 +97,7 @@ public class Building {
         List<MapLocation> currStuns = new ArrayList<MapLocation>();
         MapInfo[] mapInfos = V.rc.senseNearbyMapInfos(-1);
         for (MapInfo mi : mapInfos) {
-            if (mi.getTrapType() == TrapType.STUN || mi.getTrapType() == TrapType.EXPLOSIVE) {
+            if (mi.getTrapType() == TrapType.STUN) {
                 currStuns.add(mi.getMapLocation());
             }
         }

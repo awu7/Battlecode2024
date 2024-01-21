@@ -2,12 +2,14 @@ package RushBot;
 
 import battlecode.common.*;
 
+import java.util.Arrays;
+
 public class Healing {
-    static void healFlagBearer() throws GameActionException {
-        RobotInfo[] nearby = V.rc.senseNearbyRobots();
-        for (RobotInfo robot: nearby) {
-            if (robot.hasFlag() && robot.getTeam() == V.rc.getTeam()) {
-                MapLocation loc = robot.getLocation();
+    public static void healFlag() throws GameActionException {
+        RobotInfo[] friends = V.rc.senseNearbyRobots(4, V.team);
+        for (RobotInfo friend: friends) {
+            if (friend.hasFlag()) {
+                MapLocation loc = friend.getLocation();
                 if (V.rc.canHeal(loc)) {
                     V.rc.heal(loc);
                     return;
@@ -15,19 +17,27 @@ public class Healing {
             }
         }
     }
-    static void heal() throws GameActionException {
-        // Also prioritise flag carriers when healing
-        RobotInfo[] nearbyAllyRobots = V.rc.senseNearbyRobots(-1, V.rc.getTeam());
-        RobotInfo healTarget = V.rc.senseRobot(V.rc.getID());
-        for (RobotInfo ally : nearbyAllyRobots) {
-            if(V.rc.canHeal(ally.getLocation())
-                    && ally.health < healTarget.health) {
-                healTarget = ally;
+
+    public static void heal() throws GameActionException {
+//        RobotInfo[] enemies = V.rc.senseNearbyRobots(-1, V.team.opponent());
+//        if (enemies.length > 4) {
+//            return;
+//        }
+//        int hp = 0;
+//        for (RobotInfo enemy: enemies) {
+//            hp += enemy.getHealth();
+//        }
+//        if (hp > 1000) {
+//            return;
+//        }
+        RobotInfo[] friends = V.rc.senseNearbyRobots(4, V.team);
+        Arrays.sort(friends, (a, b) -> a.getAttackLevel() == b.getAttackLevel() ? a.getHealth() - b.getHealth() : b.getAttackLevel() - a.getAttackLevel());
+        for (RobotInfo friend: friends) {
+            MapLocation loc = friend.getLocation();
+            if (V.rc.canHeal(loc)) {
+                V.rc.heal(loc);
+                return;
             }
         }
-        if(V.rc.canHeal(healTarget.getLocation())) {
-            V.rc.heal(healTarget.getLocation());
-        }
     }
-
 }

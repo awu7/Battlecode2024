@@ -160,9 +160,9 @@ public class Bfs {
             info[i][1] = 0;
             for (RobotInfo enemy: V.rc.senseNearbyRobots(-1, V.team.opponent())) {
                 MapLocation enemyLoc = enemy.getLocation();
-                if (enemyLoc.isWithinDistanceSquared(next, 2)) {
+                if (enemyLoc.isWithinDistanceSquared(next, 4)) {
                     info[i][1] += 2;
-                } else if (enemyLoc.isWithinDistanceSquared(next, 8)) {
+                } else if (enemyLoc.isWithinDistanceSquared(next, 11)) {
                     info[i][1]++;
                 }
             }
