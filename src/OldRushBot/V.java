@@ -43,18 +43,18 @@ public class V {
     static boolean isBuilder = false;
     static int movesLeft = 0;
     static MapLocation target;
-    static int team = 0;
     static boolean lastFlag = false;
     static int round;
     /**
      * Array of all previous stuns
      */
-    static List<MapLocation> prevStuns = new ArrayList<MapLocation>();
-    static List<ActiveStun> activeStuns = new ArrayList<ActiveStun>();
+    static List<MapLocation> prevStuns = new ArrayList<>();
+    static List<ActiveStun> activeStuns = new ArrayList<>();
     static RobotInfo[] sittingDucks;
 
     static String indicatorString = "";
 
+    static int id;
     /**
      * ID compression system.
      * Each robot starts with an ID, theoretically in the range [10000, 14096).
@@ -62,8 +62,8 @@ public class V {
      * idx is a compressed mapping of each ID to its index in ids
      * ids is sorted by turn order.
      */
-    static int[] ids = new int[50];
-    static int[] idx = new int[10000];
+    static int[] ids;
+    static int[] idx;
     /**
      * [2, 31] = scouters, broadcasts everything seen in allocated spot in array.
      * [45, 49] = BFS bots, receives information from other bots and runs BFS in idle turns.
@@ -78,11 +78,11 @@ public class V {
 
     /**
      * 2d array storing the board
-     * 0 = undiscovered
-     * 1 = empty passable tile
-     * 2 = wall
-     * 3 = our spawn zone
-     * 4 = opponent's spawn zone
+     * <ul>
+     * <li>0 = non-wall</li>
+     * <li>1 = wall</li>
+     * <li>3 = undiscovered</li>
+     * </ul>
      */
     static int[][] board;
     /**
@@ -102,19 +102,15 @@ public class V {
         }
     }
     static Symmetry symmetry = Symmetry.UNKNOWN;
-    static ToIntBiFunction<Integer, Integer> getOpp = (x, y) -> { return 1; };
+    static ToIntBiFunction<Integer, Integer> getOpp = (x, y) -> 1;
     static int width, height;
     static int widthMinus1, widthMinus2, widthMinus3;
+    static int widthPlus1;
     static int heightMinus1,heightMinus2, heightMinus3;
+    static int heightPlus1, heightPlus2;
 
-    static StringBuilder q;
-    static int[][] bfs;
-    static int[][] optimal;
-    static boolean bfsDone = false;
-    static int bfsIdx = -2;
-    static int internalIdx = 0;
+    static BfsCalc spawnBfs;
 
-    static int[][] centreBfs, spawnBfs, flag0Bfs, flag1Bfs, flag2Bfs;
     public enum BfsTarget {
         CENTRE,
         SPAWN,
@@ -127,4 +123,6 @@ public class V {
     static int swarmEnd = 0;
 
     static MapLocation targetCell;
+
+    static Team team;
 }

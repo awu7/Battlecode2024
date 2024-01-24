@@ -1,7 +1,7 @@
 import os
 
 copyFrom = "RushBot"
-copyTo = "GCMicro"
+copyTo = "OldRushBot"
 
 for fname in os.listdir("./src/" + copyFrom):
     if fname.endswith(".java"):

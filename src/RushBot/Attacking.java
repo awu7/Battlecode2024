@@ -13,6 +13,7 @@ public class Attacking {
             if (enemy.hasFlag()) {
                 MapLocation loc = enemy.getLocation();
                 if (V.rc.canAttack(loc)) {
+                    V.lastAttackTimestamp = V.round;
                     V.rc.attack(loc);
                     return true;
                 }
@@ -21,7 +22,10 @@ public class Attacking {
                     for (Direction choice: new Direction[]{dir, dir.rotateLeft(), dir.rotateRight()}) {
                         if (V.rc.adjacentLocation(choice).isWithinDistanceSquared(loc, 4) && V.rc.canMove(choice)) {
                             V.rc.move(choice);
-                            V.rc.attack(loc);
+                            if (V.rc.canAttack(loc)) {
+                                V.lastAttackTimestamp = V.round;
+                                V.rc.attack(loc);
+                            }
                             return true;
                         }
                     }
@@ -44,6 +48,7 @@ public class Attacking {
             for (RobotInfo enemy: enemies) {
                 MapLocation loc = enemy.getLocation();
                 if (V.rc.canAttack(loc)) {
+                    V.lastAttackTimestamp = V.round;
                     V.rc.attack(loc);
                     return true;
                 }
@@ -52,7 +57,10 @@ public class Attacking {
                     for (Direction choice: new Direction[]{dir, dir.rotateLeft(), dir.rotateRight()}) {
                         if (V.rc.adjacentLocation(choice).isWithinDistanceSquared(loc, 4) && V.rc.canMove(choice)) {
                             V.rc.move(choice);
-                            V.rc.attack(loc);
+                            if (V.rc.canAttack(loc)) {
+                                V.lastAttackTimestamp = V.round;
+                                V.rc.attack(loc);
+                            }
                             return true;
                         }
                     }
@@ -66,6 +74,7 @@ public class Attacking {
             for (RobotInfo enemy: enemies) {
                 MapLocation loc = enemy.getLocation();
                 if (V.rc.canAttack(loc)) {
+                    V.lastAttackTimestamp = V.round;
                     V.rc.attack(loc);
                     return true;
                 }

@@ -125,4 +125,9 @@ public class V {
     static MapLocation targetCell;
 
     static Team team;
+
+    /**
+     * The timestamp (in rounds) of the last attack performed by this duck.
+     */
+    static int lastAttackTimestamp;
 }

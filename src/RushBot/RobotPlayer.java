@@ -98,7 +98,10 @@ public strictfp class RobotPlayer {
                 if (V.round > 1900) Building.farmBuildXp(3);
 //                if(V.rc.getCrumbs() > 5000) Building.buildTraps();
                 Healing.healFlag();
-                Healing.heal();
+                boolean nearEnemies = V.rc.senseNearbyRobots(-1, V.rc.getTeam().opponent()).length > 0;
+                if (!nearEnemies || (V.round - V.lastAttackTimestamp) > 4) {
+                    Healing.heal();
+                }
             } catch (GameActionException e) {
                 System.out.println("GameActionException");
                 e.printStackTrace();

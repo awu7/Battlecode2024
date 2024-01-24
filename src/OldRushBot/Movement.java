@@ -1,4 +1,4 @@
-package RushBot;
+package OldRushBot;
 
 import battlecode.common.*;
 
@@ -25,8 +25,6 @@ public class Movement {
         List<RobotInfo> listEnemies = new ArrayList<RobotInfo>();
         // sittingDucks contains all stunned enemies
         List<RobotInfo> listSittingDucks = new ArrayList<RobotInfo>();
-        // occupiedEnemies contains all enemies that are already attacking
-        List<RobotInfo> listOccupiedEnemies = new ArrayList<RobotInfo>();
         for(RobotInfo enemy : rawEnemies) {
             boolean skip = false;
             for (ActiveStun stun : V.activeStuns) {
@@ -41,15 +39,10 @@ public class Movement {
                 continue;
             }
             enemyHP += enemy.health;
-            if (V.rc.senseNearbyRobots(enemy.getLocation(), 4, V.rc.getTeam()).length > 0) {
-                listOccupiedEnemies.add(enemy);
-            } else {
-                listEnemies.add(enemy);
-            }
+            listEnemies.add(enemy);
         }
         enemies = listEnemies.toArray(new RobotInfo[0]);
         V.sittingDucks = listSittingDucks.toArray(new RobotInfo[0]);
-        RobotInfo[] occupiedEnemies = listOccupiedEnemies.toArray(new RobotInfo[0]);
         // Movement
         {
             if (V.sittingDucks.length > 0 && !V.rc.hasFlag() && !V.isBuilder) {
@@ -170,10 +163,8 @@ public class Movement {
                             V.rc.setIndicatorLine(V.rc.getLocation(), V.sittingDucks[0].getLocation(), 255, 0, 0);
                             //System.out.println("Moving towards a sitting duck");
                             BugNav.moveBetter(V.sittingDucks[0].getLocation());
-                        } else if (enemies.length > 0) {
-                            BugNav.moveBetter(enemies[0].getLocation());
                         } else {
-                            BugNav.moveBetter(occupiedEnemies[0].getLocation());
+                            BugNav.moveBetter(enemies[0].getLocation());
                         }
                     }
                 }
