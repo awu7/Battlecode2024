@@ -41,7 +41,15 @@ public class Movement {
                 continue;
             }
             enemyHP += enemy.health;
-            if (V.rc.senseNearbyRobots(enemy.getLocation(), 4, V.rc.getTeam()).length > 0) {
+            boolean occupied = false;
+            RobotInfo[] alliesAroundEnemy = V.rc.senseNearbyRobots(enemy.getLocation(), 4, V.rc.getTeam());
+            for (RobotInfo ally : alliesAroundEnemy) {
+                if (V.idx[ally.getID()-10000] < V.selfIdx) {
+                    occupied = true;
+                    break;
+                }
+            }
+            if (occupied) {
                 listOccupiedEnemies.add(enemy);
             } else {
                 listEnemies.add(enemy);
