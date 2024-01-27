@@ -1,11 +1,14 @@
 package RushBot;
 
 import battlecode.common.*;
+import org.apache.commons.collections.ArrayStack;
 
+import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class Movement {
     public static void AllMovements() throws GameActionException {
@@ -189,6 +192,59 @@ public class Movement {
                 BugNav.moveBetter(V.targetCell);
                 RobotUtils.debug(V.targetCell);
                 RobotUtils.debug("Nope, not kiting");
+            }
+        }
+    }
+    public static void SetupFlags() throws GameActionException {
+        if (V.rc.hasFlag()) {
+            // Move the flag to a safe spot
+            RobotUtils.debug("Moving Flags");
+            List<MapLocation> listEnemySpawns = new ArrayList<MapLocation>();
+            for (MapLocation centre : V.spawnCentres) {
+                /*if (V.vertical) {
+                    listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, centre.y));
+                }*/
+                /*if (V.horizontal) {
+                    listEnemySpawns.add(new MapLocation(centre.x, V.rc.getMapHeight()-1-centre.y));
+                }*/
+                if (V.rotational) {
+                    listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, V.rc.getMapHeight()-1-centre.y));
+                }
+            }
+            MapLocation[] enemySpawns = listEnemySpawns.toArray(new MapLocation[0]);
+            RobotUtils.shuffle(V.shuffledDirections);
+            int bestDist = RobotUtils.closest(enemySpawns).distanceSquaredTo(V.rc.getLocation());
+            MapLocation bestLoc = null;
+            MapInfo[] vicinity = V.rc.senseNearbyMapInfos((V.round < 140)?10:2);
+            RobotUtils.shuffle(vicinity);
+            for (MapInfo mi : vicinity) {
+                if (!mi.isPassable() || mi.getMapLocation() == V.rc.getLocation()) continue;
+                int distToEnemy = RobotUtils.closest(enemySpawns, mi.getMapLocation()).distanceSquaredTo(mi.getMapLocation());
+                if (V.rc.sensePassability(mi.getMapLocation())
+                        && V.rc.senseLegalStartingFlagPlacement(mi.getMapLocation())
+                        && distToEnemy > bestDist) {
+                    bestLoc = mi.getMapLocation();
+                    bestDist = distToEnemy;
+                }
+            }
+            if (bestLoc == null) {
+                // Stay still I guess
+                V.rc.dropFlag(V.rc.getLocation());
+                V.setFlag = true;
+            } else {
+                BugNav.moveBetter(bestLoc);
+                V.flagHome = V.rc.getLocation();
+            }
+        } else if (!V.setFlag) {
+            // Move towards the flag
+            // We don't have it and the flag is not set, so it should still be at spawn
+            if (!V.rc.getLocation().equals(V.home)) {
+                BugNav.moveBetter(V.home);
+                V.rc.setIndicatorLine(V.rc.getLocation(), V.home, 0, 0, 255);
+            }
+            FlagInfo[] nearbyFlags = V.rc.senseNearbyFlags(2, V.rc.getTeam());
+            if (nearbyFlags.length > 0 && V.rc.canPickupFlag(nearbyFlags[0].getLocation())) {
+                V.rc.pickupFlag(nearbyFlags[0].getLocation());
             }
         }
     }

@@ -1,6 +1,7 @@
 package RushBot;
 
 import battlecode.common.*;
+import jdk.nashorn.internal.runtime.GlobalConstants;
 
 public class BugNav {
     public static void moveBetter(MapLocation pos) throws GameActionException {
@@ -21,7 +22,7 @@ public class BugNav {
         MapLocation nextLoc;
         RobotInfo nextLocRobot;
         boolean triedOtherDir = false;
-        boolean hasFlag = V.rc.hasFlag() || V.rc.canPickupFlag(V.rc.getLocation());
+        boolean hasFlag = (V.rc.hasFlag() || V.rc.canPickupFlag(V.rc.getLocation())) && V.round >= GameConstants.SETUP_ROUNDS;
         boolean fillableWater;
         while(V.stackSize < 8) {
             nextLoc = V.rc.getLocation().add(V.stack[V.stackSize - 1]);

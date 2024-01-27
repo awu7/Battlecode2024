@@ -12,7 +12,8 @@ public strictfp class RobotPlayer {
         while (true) {
             try {
                 V.round = V.rc.getRoundNum();
-                if (!V.rc.isSpawned() && V.round != Consts.BFS_ROUND + 2 && V.round != Consts.BFS_ROUND + 3) {
+                if (!V.rc.isSpawned() && V.round != Consts.BFS_ROUND + 2 && V.round != Consts.BFS_ROUND + 3 && V.round >= 3) {
+                    // Wait until 3rd round because we don't know if we are the flag sitter until 3rd round
                     Spawning.attemptSpawn();
                 }
                 if (V.round == 1) {
@@ -47,6 +48,7 @@ public strictfp class RobotPlayer {
                     }
                     if (V.selfIdx >= 40 && V.selfIdx <= 42) {
                         V.home = V.spawnCentres[V.selfIdx - 40];
+                        V.flagHome = V.home;
                     }
                     continue;
                 }
@@ -58,12 +60,19 @@ public strictfp class RobotPlayer {
                 if (!V.rc.isSpawned()) {
                     continue;
                 }
-                if(V.rc.onTheMap(V.home)) {
-                    if(!V.rc.getLocation().equals(V.home)) {
-                        BugNav.moveBetter(V.home);
-                        V.rc.setIndicatorLine(V.rc.getLocation(), V.home, 0, 0, 255);
+                if(V.rc.onTheMap(V.flagHome)) {
+                    if (V.round >= GameConstants.SETUP_ROUNDS - 10) {
+                        // By now we should have the flag in a secure location
+                        // So we just need to walk to the flag or put traps on it if we are already there
+                        if (!V.rc.getLocation().equals(V.flagHome)) {
+                            BugNav.moveBetter(V.flagHome);
+                            V.rc.setIndicatorLine(V.rc.getLocation(), V.flagHome, 0, 0, 255);
+                        }
+                        if (V.rc.getLocation().equals(V.flagHome)) Building.trapSpawn();
+                    } else {
+                        Movement.SetupFlags();
+                        continue;
                     }
-                    if(V.rc.getLocation().equals(V.home)) Building.trapSpawn();
                 } else if (V.round <= 150) {
 //                    if(V.isBuilder) {
 //                        Building.farmBuildXp(6);

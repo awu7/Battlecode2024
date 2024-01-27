@@ -39,7 +39,25 @@ public class V {
 
     static MapLocation centre;
     static MapLocation[] spawnCentres = new MapLocation[3];
+    /**
+     * The home (centre of a spawnpoint) of the current robot.
+     * This is (-1, -1) if the robot does not sit on a flag.
+     * Is set once and never again on round 2.
+     */
     static MapLocation home = new MapLocation(-1, -1);
+    /**
+     * The respawn location of the current flag that the robot
+     * is guarding ((-1, -1) if the robot does not sit on a flag).
+     * Difference between this and {@link V#home} is that <code>home</code>
+     * is only set once, while this changes depending on the location of
+     * the flag's respawn.
+     */
+    static MapLocation flagHome = new MapLocation(-1, -1);
+    /**
+     * If this is a flag sitting robot, whether it has
+     * decided on a good place to position the flag
+     */
+    static boolean setFlag = false;
     static boolean isBuilder = false;
     static int movesLeft = 0;
     static MapLocation target;

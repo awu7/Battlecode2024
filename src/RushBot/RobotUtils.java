@@ -51,23 +51,33 @@ public class RobotUtils {
     }
 
     /**
-     * Helper function which finds the closest locatin to the robot's current location.
+     * Helper function which finds the closest location to a given location.
      * @param locs an array of locations.
+     * @param from location to find the closest location to, from <code>locs</code>
      * @return the closest location to the robot's current location.
      */
-    static MapLocation closest(MapLocation[] locs) {
+    static MapLocation closest(MapLocation[] locs, MapLocation from) {
         if(locs.length == 0) return new MapLocation(-1, -1);
         int mn = 1000000000;
         MapLocation res = locs[0];
         for (int i = 0; i < locs.length; i++) {
             if(!V.rc.onTheMap(locs[i])) continue;
-            int dist = locs[i].distanceSquaredTo(V.rc.getLocation());
+            int dist = locs[i].distanceSquaredTo(from);
             if (dist < mn) {
                 mn = dist;
                 res = locs[i];
             }
         }
         return res;
+    }
+
+    /**
+     * Helper function which finds the closest location to the robot's current location.
+     * @param locs an array of locations.
+     * @return the closest location to the robot's current location.
+     */
+    static MapLocation closest(MapLocation[] locs) {
+        return closest(locs, V.rc.getLocation());
     }
 
     /**
