@@ -25,7 +25,7 @@ public class RobotUtils {
      * @return The smallest distance to the edge of the map
      */
     static int distFromEdge(MapLocation loc) {
-        return StrictMath.min(StrictMath.min(loc.x, V.width - loc.x), StrictMath.min(loc.y, V.height - loc.y));
+        return StrictMath.min(StrictMath.min(loc.x, V.width - 1 - loc.x), StrictMath.min(loc.y, V.height - 1 - loc.y));
     }
 
     /**
@@ -143,14 +143,13 @@ public class RobotUtils {
         }
         V.id = V.rc.getID();
         V.team = V.rc.getTeam();
+        BugNav.init();
     }
 
     public static void endRound() {
         if (V.rc.onTheMap(V.targetCell) && V.rc.isSpawned()) {
             V.rc.setIndicatorLine(V.rc.getLocation(), V.targetCell, 0, 255, 0);
         }
-        RobotUtils.debug("TD: " + String.valueOf(V.turnDir));
-        RobotUtils.debug("SS: " + String.valueOf(V.stackSize));
         V.rc.setIndicatorString(V.indicatorString);
         V.indicatorString = "";
         int round = V.rc.getRoundNum();

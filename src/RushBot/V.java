@@ -88,10 +88,6 @@ public class V {
      */
     static int selfIdx = -1;
 
-    static Direction[] stack = new Direction[10];
-    static int stackSize = 0;
-    static int turnDir = 0;
-    static int stackPassIndex = 3;
     static RobotInfo[] nearbyAllies;
 
     /**

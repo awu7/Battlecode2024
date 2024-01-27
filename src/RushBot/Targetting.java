@@ -44,7 +44,7 @@ public class Targetting {
         }
         if(swarmLeader != 0) {
             MapLocation newSwarmTarget = new MapLocation(V.rc.readSharedArray(1), V.rc.readSharedArray(2));
-            if(V.rc.getLocation().distanceSquaredTo(V.swarmTarget) < StrictMath.max(V.height, V.width)) {
+            if(Math.sqrt(V.rc.getLocation().distanceSquaredTo(V.swarmTarget)) < StrictMath.max(V.height, V.width) * 0.6) {
                 V.swarmTarget = newSwarmTarget;
                 V.swarmEnd = V.rc.getRoundNum() + StrictMath.max(V.height, V.width) / 2;
             }
