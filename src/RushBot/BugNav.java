@@ -73,15 +73,17 @@ public class BugNav {
             front = back = dirToPos;
             stackSize = 1;
         }
-        if(stackSize == 1) {
-            turnDir = rng.nextInt(2);
+        if(stackSize == 1 && rng.nextInt(32) == 0) {
+            turnDir = 1 - turnDir;
         }
-        if(stackSize >= 2 && goodDir(turn(back, 1 - turnDir))) {
-            stackSize--;
-            back = turn(back, 1 - turnDir);
-        } else if(stackSize >= 3 && goodDir(turn(turn(back, 1 - turnDir), 1 - turnDir))) {
+        if(stackSize >= 3 && goodDir(turn(turn(back, 1 - turnDir), 1 - turnDir))) {
             stackSize -= 2;
             back = turn(turn(back, 1 - turnDir), 1 - turnDir);
+        } else if(stackSize >= 2 && goodDir(turn(back, 1 - turnDir))) {
+            stackSize--;
+            back = turn(back, 1 - turnDir);
+        } else {
+            RobotUtils.debug("Not turning back");
         }
         boolean triedOtherDir = false;
         while(stackSize < 8) {
@@ -105,6 +107,7 @@ public class BugNav {
             stackSize = 1;
             back = front = rc.getLocation().directionTo(pos);
         }
+        RobotUtils.debug(back);
         MapLocation nextLoc = rc.adjacentLocation(back);
         if(!rc.onTheMap(nextLoc)) return;
         RobotInfo nextLocRobot = rc.senseRobotAtLocation(nextLoc);
