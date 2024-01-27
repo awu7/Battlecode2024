@@ -198,7 +198,7 @@ public class Bfs {
             for (int j = 4; j < i; j += 2) {
                 Bfs.decodeBroadcast(j);
             }
-        } else if (V.round >= 4 && V.round < Consts.BFS_ROUND) {
+        } else if (V.round >= 4 && V.round < Consts.SYMMETRY_ONE || V.round > Consts.SYMMETRY_ONE + 1 && V.round < Consts.BFS_ROUND) {
             int i = V.selfIdx << 1;
             if (V.rc.isSpawned()) {
                 Bfs.recordVision();
@@ -215,26 +215,42 @@ public class Bfs {
             for (int j = i + 2; j < 64; j += 2) {
                 Bfs.decodeBroadcast(j);
             }
-        } else if (V.round == Consts.BFS_ROUND) {
+        } else if (V.round == Consts.SYMMETRY_ONE) {
             // utilise spawnpoints to eliminate some symmetries
             int[][] local = V.board;
             int[][] spawns = new int[27][];
             MapLocation[] spawnLocs = V.rc.getAllySpawnLocations();
             int x, y;
-            for (int i = 27; --i >= 0;) {
+            for (int i = 27; --i >= 0; ) {
                 spawns[i] = new int[]{x = spawnLocs[i].x, y = spawnLocs[i].y};
                 local[x][y] = 4;
             }
-            for (int i = 27; --i >= 0;) {
+            for (int i = 27; --i >= 0; ) {
                 x = spawns[i][0];
                 y = spawns[i][1];
                 V.vertical = V.vertical && RobotUtils.maybeOppSpawn(local[x][V.heightMinus1 - y]);
                 V.horizontal = V.horizontal && RobotUtils.maybeOppSpawn(local[V.widthMinus1 - x][y]);
                 V.rotational = V.rotational && RobotUtils.maybeOppSpawn(local[V.widthMinus1 - x][V.heightMinus1 - y]);
             }
-            for (int i = 27; --i >= 0;) {
+            for (int i = 27; --i >= 0; ) {
                 local[spawns[i][0]][spawns[i][1]] = 0;
             }
+            // all robots broadcast their interpretation of the map's symmetry
+            Bfs.broadcastSymmetry(V.selfIdx + 14);
+        } else if (V.round == Consts.SYMMETRY_ONE + 1) {
+            // receive symmetry broadcasts from other robots
+            int hash = 0b111;
+            for (int i = 14; i < 64; ++i) {
+                int hashi = V.rc.readSharedArray(i);
+                int info = hashi & 0b111;
+                if (hashi == (info | (~info & 0b111) << 3)) {
+                    hash &= info;
+                }
+            }
+            V.vertical = V.vertical && (hash & 1) == 1;
+            V.horizontal = V.horizontal && (Integer.rotateRight(hash, 1) & 1) == 1;
+            V.rotational = V.rotational && (Integer.rotateRight(hash, 2) & 1) == 1;
+        } else if (V.round == Consts.BFS_ROUND) {
             // all robots broadcast their interpretation of the map's symmetry
             Bfs.broadcastSymmetry(V.selfIdx + 14);
         } else if (V.round == Consts.BFS_ROUND + 1) {
