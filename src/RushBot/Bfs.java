@@ -24,7 +24,7 @@ public class Bfs {
     }
 
     public static void broadcastVision(int arrayIdx) throws GameActionException {
-        if (arrayIdx < 4 || arrayIdx >= 64) {
+        if (arrayIdx < 6 || arrayIdx >= 64) {
             return;
         }
         MapLocation curLoc = V.rc.getLocation();
@@ -195,7 +195,7 @@ public class Bfs {
             if (i > 64) {
                 i = 64;
             }
-            for (int j = 4; j < i; j += 2) {
+            for (int j = 6; j < i; j += 2) {
                 Bfs.decodeBroadcast(j);
             }
         } else if (V.round >= 4 && V.round < Consts.SYMMETRY_ONE || V.round > Consts.SYMMETRY_ONE + 1 && V.round < Consts.BFS_ROUND) {
@@ -247,8 +247,8 @@ public class Bfs {
                 Bfs.recordVision();
                 Bfs.broadcastVision(i);
             }
-            if (i < 2) {
-                i = 2;
+            if (i < 4) {
+                i = 4;
             } else if (i > 64) {
                 i = 64;
             }
