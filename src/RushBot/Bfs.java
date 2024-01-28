@@ -148,7 +148,7 @@ public class Bfs {
             return;
         }
         if (V.spawnBfs == null) {
-            BugNav.moveBetter(RobotUtils.closest(V.rc.getAllySpawnLocations()));
+            BugNav.moveBetter(RobotUtils.closest(V.spawns));
             return;
         }
         int curDist = V.spawnBfs.dist(V.rc.getLocation());
@@ -199,6 +199,49 @@ public class Bfs {
                 Bfs.decodeBroadcast(j);
             }
         } else if (V.round >= 4 && V.round < Consts.SYMMETRY_ONE || V.round > Consts.SYMMETRY_ONE + 1 && V.round < Consts.BFS_ROUND) {
+            if (V.flagHome != null) {
+                if (V.round == Consts.SYMMETRY_ONE + 2) {
+                    switch (V.symmetry) {
+                        case VERTICAL:
+                            updateVerSymmetry();
+                            break;
+                        case HORIZONTAL:
+                            updateHorSymmetry();
+                            break;
+                        case ROTATIONAL:
+                            updateRotSymmetry();
+                            break;
+                    }
+                    return false;
+                } else if (V.round == Consts.SYMMETRY_ONE + 3) {
+                    MapLocation[] oppSpawns = new MapLocation[27];
+                    switch (V.symmetry) {
+                        case VERTICAL:
+                            for (int i = 27; --i >= 0; ) {
+                                MapLocation loc = V.spawns[i];
+                                oppSpawns[i] = new MapLocation(loc.x, V.heightMinus1 - loc.y);
+                            }
+                            break;
+                        case HORIZONTAL:
+                            for (int i = 27; --i >= 0; ) {
+                                MapLocation loc = V.spawns[i];
+                                oppSpawns[i] = new MapLocation(V.widthMinus1 - loc.x, loc.y);
+                            }
+                            break;
+                        case ROTATIONAL:
+                            for (int i = 27; --i >= 0; ) {
+                                MapLocation loc = V.spawns[i];
+                                oppSpawns[i] = new MapLocation(V.widthMinus1 - loc.x, V.heightMinus1 - loc.y);
+                            }
+                            break;
+                    }
+                    V.flagBfs = new BfsCalc(V.board, oppSpawns, true);
+                    return true;
+                } else if (V.round > Consts.SYMMETRY_ONE + 3 && !V.flagBfs.done) {
+                    V.flagBfs.compute(1000);
+                    return false;
+                }
+            }
             int i = V.selfIdx << 1;
             if (V.rc.isSpawned()) {
                 Bfs.recordVision();
@@ -219,7 +262,7 @@ public class Bfs {
             // utilise spawnpoints to eliminate some symmetries
             int[][] local = V.board;
             int[][] spawns = new int[27][];
-            MapLocation[] spawnLocs = V.rc.getAllySpawnLocations();
+            MapLocation[] spawnLocs = V.spawns;
             int x, y;
             for (int i = 27; --i >= 0; ) {
                 spawns[i] = new int[]{x = spawnLocs[i].x, y = spawnLocs[i].y};
@@ -250,6 +293,16 @@ public class Bfs {
             V.vertical = V.vertical && (hash & 1) == 1;
             V.horizontal = V.horizontal && (Integer.rotateRight(hash, 1) & 1) == 1;
             V.rotational = V.rotational && (Integer.rotateRight(hash, 2) & 1) == 1;
+            if (V.vertical && !V.horizontal && !V.rotational) {
+                V.symmetry = V.Symmetry.VERTICAL;
+                V.getOpp = (x, y) -> V.board[x][V.heightMinus1 - y];
+            } else if (!V.vertical && V.horizontal && !V.rotational) {
+                V.symmetry = V.Symmetry.HORIZONTAL;
+                V.getOpp = (x, y) -> V.board[V.widthMinus1 - x][y];
+            } else {
+                V.symmetry = V.Symmetry.ROTATIONAL;
+                V.getOpp = (x, y) -> V.board[V.widthMinus1 - x][V.heightMinus1 - y];
+            }
         } else if (V.round == Consts.BFS_ROUND) {
             // all robots broadcast their interpretation of the map's symmetry
             Bfs.broadcastSymmetry(V.selfIdx + 14);
@@ -290,7 +343,7 @@ public class Bfs {
             }
             return false;  // once kiting is fixed, this should be removed
         } else if (V.round == Consts.BFS_ROUND + 3) {
-            V.spawnBfs = new BfsCalc(V.board, V.rc.getAllySpawnLocations());
+            V.spawnBfs = new BfsCalc(V.board, V.spawns, false);
         } else if (V.round > Consts.BFS_ROUND + 3 && !V.spawnBfs.done) {
             if (V.rc.isSpawned()) {
                 V.spawnBfs.compute(10000);

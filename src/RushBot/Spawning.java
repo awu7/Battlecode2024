@@ -4,7 +4,7 @@ import battlecode.common.*;
 
 public class Spawning {
     public static void attemptSpawn() throws GameActionException {
-        MapLocation[] spawnLocs = V.rc.getAllySpawnLocations();
+        MapLocation[] spawnLocs = V.spawns;
         RobotUtils.shuffle(spawnLocs);
         if (V.rc.onTheMap(V.home)) {
             if (V.rc.canSpawn(V.home)) {

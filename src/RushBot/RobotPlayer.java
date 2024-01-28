@@ -34,9 +34,9 @@ public strictfp class RobotPlayer {
                         UnrolledUtils.clearSharedArray();
                     }
                     int f = 0;
-                    for (MapLocation m : V.rc.getAllySpawnLocations()) {
+                    for (MapLocation m : V.spawns) {
                         int adjCount = 0;
-                        for(MapLocation m2 : V.rc.getAllySpawnLocations()) {
+                        for(MapLocation m2 : V.spawns) {
                             if (m.isAdjacentTo(m2)) adjCount++;
                         }
                         if (adjCount == 9) {
@@ -60,7 +60,7 @@ public strictfp class RobotPlayer {
                 if (!V.rc.isSpawned()) {
                     continue;
                 }
-                if(V.rc.onTheMap(V.flagHome)) {
+                if (V.flagHome != null) {
                     if (V.round <= Consts.SYMMETRY_ONE + 4 || V.round >= GameConstants.SETUP_ROUNDS - 10) {
                         // By now we should have the flag in a secure location
                         // So we just need to walk to the flag or put traps on it if we are already there

@@ -16,7 +16,7 @@ public class Targetting {
         if(swarmLeader == V.rc.getID()) {
             V.rc.writeSharedArray(0, 0);
         }
-        if(V.rc.hasFlag()) return RobotUtils.closest(V.rc.getAllySpawnLocations());
+        if(V.rc.hasFlag()) return RobotUtils.closest(V.spawns);
         FlagInfo[] friendlyFlags = V.rc.senseNearbyFlags(-1, V.rc.getTeam());
         if(friendlyFlags.length > 0 && V.rc.senseNearbyRobots(-1, V.rc.getTeam().opponent()).length > 0) {
             for(FlagInfo f : friendlyFlags) {

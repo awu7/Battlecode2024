@@ -24,7 +24,7 @@ public class Capture {
                                 // the optimal move is not known, so only pickup if we are currently on the flag
                                 // not the most efficient flag passing but prevents back and forth
                                 V.rc.pickupFlag(flagLoc);
-                                BugNav.moveBetter(RobotUtils.closest(V.rc.getAllySpawnLocations()));
+                                BugNav.moveBetter(RobotUtils.closest(V.spawns));
                                 System.out.println("No bfs, greedy pickup");
                             }
                             return;

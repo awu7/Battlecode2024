@@ -6,13 +6,13 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 public class BfsCalc {
-    private final StringBuilder boardBuilder;
+    private StringBuilder boardBuilder;
     private final int width, height;
     private final StringBuilder q;
 
     public boolean done;
 
-    public BfsCalc(int[][] boardArr, MapLocation[] sources) {
+    public BfsCalc(int[][] boardArr, MapLocation[] sources, boolean greedy) {
         boardBuilder = new StringBuilder();
         width = boardArr.length;
         height = boardArr[0].length;
@@ -159,6 +159,9 @@ public class BfsCalc {
                 fill.accept(boardArr[0]);
         }
         local.reverse();
+        if (greedy) {
+            boardBuilder = new StringBuilder(local.toString().replace('3', '0'));
+        }
         q = new StringBuilder();
         for (MapLocation loc: sources) {
             int i = loc.x * V.heightPlus1 + loc.y;

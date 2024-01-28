@@ -138,11 +138,9 @@ public class RobotUtils {
         for (int x = V.width; --x >= 0;) {
             UnrolledUtils.fill(V.board[x] = new int[V.height], 3);
         }
-        for (MapLocation spawn: V.rc.getAllySpawnLocations()) {
-            V.board[spawn.x][spawn.y] = 3;
-        }
         V.id = V.rc.getID();
         V.team = V.rc.getTeam();
+        V.spawns = V.rc.getAllySpawnLocations();
         BugNav.init();
     }
 

@@ -52,7 +52,7 @@ public class V {
      * is only set once, while this changes depending on the location of
      * the flag's respawn.
      */
-    static MapLocation flagHome = new MapLocation(-1, -1);
+    static MapLocation flagHome = null;
     /**
      * If this is a flag sitting robot, whether it has
      * decided on a good place to position the flag
@@ -74,17 +74,17 @@ public class V {
 
     static int id;
     /**
-     * ID compression system.
-     * Each robot starts with an ID, theoretically in the range [10000, 14096).
-     * ids is an int array which stores the actual ID of each robot.
-     * idx is a compressed mapping of each ID to its index in ids
-     * ids is sorted by turn order.
+     * ID compression system.<br>
+     * Each robot starts with an ID, theoretically in the range [10000, 14096).<br>
+     * <code>ids</code> is an int array which stores the actual ID of each robot.<br>
+     * <code>idx</code> is a compressed mapping of each ID to its index in ids<br>
+     * <code>ids</code> is sorted by turn order.
      */
     static int[] ids;
     static int[] idx;
     /**
-     * [2, 31] = scouters, broadcasts everything seen in allocated spot in array.
-     * [45, 49] = BFS bots, receives information from other bots and runs BFS in idle turns.
+     * [2, 31] = scouters, broadcasts everything seen in allocated spot in array.<br>
+     * [47, 49] = flag sitters, move the flags in setup and sit on them for the rest of the game.
      */
     static int selfIdx = -1;
 
@@ -123,7 +123,8 @@ public class V {
     static int heightMinus1,heightMinus2, heightMinus3;
     static int heightPlus1, heightPlus2;
 
-    static BfsCalc spawnBfs;
+    static BfsCalc spawnBfs = null;
+    static BfsCalc flagBfs = null;
 
     public enum BfsTarget {
         CENTRE,
@@ -144,4 +145,6 @@ public class V {
      * The timestamp (in rounds) of the last attack performed by this duck.
      */
     static int lastAttackTimestamp;
+
+    static MapLocation[] spawns;
 }
