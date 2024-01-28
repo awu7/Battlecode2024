@@ -12,6 +12,7 @@ public strictfp class RobotPlayer {
         while (true) {
             try {
                 V.round = V.rc.getRoundNum();
+                if (V.round > 250) V.rc.resign(); // REMOVE THIS WHEN NOT TESTING
                 if (!V.rc.isSpawned() && V.round != Consts.BFS_ROUND + 2 && V.round != Consts.BFS_ROUND + 3 && V.round >= 3) {
                     // Wait until 3rd round because we don't know if we are the flag sitter until 3rd round
                     Spawning.attemptSpawn();
@@ -46,12 +47,14 @@ public strictfp class RobotPlayer {
                     if (V.selfIdx >= 37 && V.selfIdx <= 39) {
                         V.isBuilder = true;
                     }
-                    if (V.selfIdx >= 40 && V.selfIdx <= 42) {
-                        V.home = V.spawnCentres[V.selfIdx - 40];
+                    if (V.selfIdx >= Consts.LOWEST_FLAG_SITTER && V.selfIdx <= Consts.HIGHEST_FLAG_SITTER) {
+                        V.home = V.spawnCentres[V.selfIdx - Consts.LOWEST_FLAG_SITTER];
                         V.flagHome = V.home;
+                        V.rc.writeSharedArray(V.selfIdx-Consts.LOWEST_FLAG_SITTER+Consts.LOWEST_FS_COMMS_IDX, Comms.encode(V.flagHome));
                     }
                     continue;
                 }
+                //if (V.flagHome != null) RobotUtils.debug("FS");
                 if (!Bfs.precomp()) {
                     // run out of bytecode
                     continue;
@@ -61,14 +64,26 @@ public strictfp class RobotPlayer {
                     continue;
                 }
                 if (V.flagHome != null) {
-                    if (V.round <= Consts.SYMMETRY_ONE + 4 || V.round >= GameConstants.SETUP_ROUNDS - 10) {
+                    if (V.round == 50) {
+                        V.wallWeights = new int[V.width][];
+                        for (int x = V.width; --x >= 0;) {
+                            UnrolledUtils.fill(V.wallWeights[x] = new int[V.height], 0);
+                        }
+                    }
+                    if (V.round == 75) {
+                        V.flagWeights = new int[V.width][];
+                        for (int x = V.width; --x >= 0;) {
+                            UnrolledUtils.fill(V.flagWeights[x] = new int[V.height], -100);
+                        }
+                    }
+                    if (V.round <= Consts.SYMMETRY_ONE + 4 || V.round >= GameConstants.SETUP_ROUNDS-1) {
                         // By now we should have the flag in a secure location
                         // So we just need to walk to the flag or put traps on it if we are already there
                         if (!V.rc.getLocation().equals(V.flagHome)) {
                             BugNav.moveBetter(V.flagHome);
                             V.rc.setIndicatorLine(V.rc.getLocation(), V.flagHome, 0, 0, 255);
                         }
-                        if (V.rc.getLocation().equals(V.flagHome)) Building.trapSpawn();
+                        if (V.rc.getLocation().equals(V.flagHome) && V.round >= GameConstants.SETUP_ROUNDS-10) Building.trapSpawn();
                     } else {
                         Movement.SetupFlags();
                         continue;
@@ -100,7 +115,7 @@ public strictfp class RobotPlayer {
                 if (Attacking.attack()) {
                     Attacking.attack();
                 }
-                Movement.AllMovements();
+                if (V.flagHome == null) Movement.AllMovements();
                 if (Attacking.attack()) {
                     Attacking.attack();
                 }

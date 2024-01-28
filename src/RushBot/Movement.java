@@ -1,5 +1,6 @@
 package RushBot;
 
+import GCMicro.BfsCalc;
 import battlecode.common.*;
 import org.apache.commons.collections.ArrayStack;
 
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 public class Movement {
+    private static MapLocation[] enemySpawns;
     public static void AllMovements() throws GameActionException {
         RobotInfo[] enemies = V.rc.senseNearbyRobots(9, V.rc.getTeam().opponent());
         V.nearbyAllies = V.rc.senseNearbyRobots(-1, V.rc.getTeam());
@@ -209,50 +211,314 @@ public class Movement {
             }
         }
         if (V.rc.hasFlag()) {
-            // Move the flag to a safe spot
-            RobotUtils.debug("Moving Flags");
-            List<MapLocation> listEnemySpawns = new ArrayList<MapLocation>();
-            for (MapLocation centre : V.spawnCentres) {
-                if (V.horizontal) {
-                    listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, centre.y));
-                    V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 0, 255);
-                }
-                if (V.vertical) {
-                    listEnemySpawns.add(new MapLocation(centre.x, V.rc.getMapHeight()-1-centre.y));
-                    V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 255, 0);
-                }
-                if (V.rotational) {
-                    listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, V.rc.getMapHeight()-1-centre.y));
-                    V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 0, 255, 255);
-                }
-            }
-            RobotUtils.debug("V:"+V.vertical+",H:"+V.horizontal+",R:"+V.rotational);
-            MapLocation[] enemySpawns = listEnemySpawns.toArray(new MapLocation[0]);
-            RobotUtils.shuffle(V.shuffledDirections);
-            int bestDist = RobotUtils.closest(enemySpawns).distanceSquaredTo(V.rc.getLocation());
-            MapLocation bestLoc = null;
-            MapInfo[] vicinity = V.rc.senseNearbyMapInfos((V.round < 140)?20:2);
-            RobotUtils.shuffle(vicinity);
-            for (MapInfo mi : vicinity) {
-                if (!mi.isPassable() || mi.getMapLocation() == V.rc.getLocation()) continue;
-                int distToEnemy = RobotUtils.closest(enemySpawns, mi.getMapLocation()).distanceSquaredTo(mi.getMapLocation());
-                if (V.rc.sensePassability(mi.getMapLocation())
-                        && V.rc.senseLegalStartingFlagPlacement(mi.getMapLocation())
-                        && distToEnemy > bestDist) {
-                    bestLoc = mi.getMapLocation();
-                    bestDist = distToEnemy;
-                }
-            }
-            if (bestLoc == null) {
-                // Stay still I guess
-                if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
-                V.setFlag = true;
+            if (V.round < 200) {
+                BFSFlagMove();
             } else {
-                BugNav.moveBetter(bestLoc);
-                if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
-                V.rc.setIndicatorLine(V.rc.getLocation(),bestLoc, 255, 0, 255);
-                V.flagHome = V.rc.getLocation();
+                GreedyFlagMove();
             }
         }
+    }
+    private static int weighting(MapLocation loc) throws GameActionException {
+        int res = V.flagWeights[loc.x][loc.y];
+        if (V.flagWeights[loc.x][loc.y] == -100) {
+            int bfsDist = V.flagBfs.dist(loc);
+            if (bfsDist == 10000) return -1;
+            int wallWeight = 0;
+            { // This is a loop.
+                // The reasoning for using 85 is that the max dist across the map is around 84.85 smth
+                //wallWeight = UnrolledWeightingHelper(loc);
+            }
+            V.flagWeights[loc.x][loc.y] = bfsDist+wallWeight;
+            return bfsDist+wallWeight;
+        }
+        return res;
+    }
+    private static void BFSFlagMove() throws GameActionException {
+        // Move the flag to a safe spot
+        RobotUtils.debug("bfsFlag");
+        List<MapLocation> listEnemySpawns = new ArrayList<MapLocation>();
+        for (MapLocation centre : V.spawnCentres) {
+            if (V.horizontal) {
+                listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, centre.y));
+                V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 0, 255);
+            }
+            if (V.vertical) {
+                listEnemySpawns.add(new MapLocation(centre.x, V.rc.getMapHeight()-1-centre.y));
+                V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 255, 0);
+            }
+            if (V.rotational) {
+                listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, V.rc.getMapHeight()-1-centre.y));
+                V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 0, 255, 255);
+            }
+        }
+        //RobotUtils.debug("V:"+V.vertical+",H:"+V.horizontal+",R:"+V.rotational);
+        enemySpawns = listEnemySpawns.toArray(new MapLocation[0]);
+        //RobotUtils.debug("V:"+V.vertical+",H:"+V.horizontal+",R:"+V.rotational);
+        //RobotUtils.shuffle(V.shuffledDirections);
+        int bestDist = weighting(V.rc.getLocation());
+        MapLocation bestLoc = null;
+        //List<MapLocation> bestLocs = new ArrayList<MapLocation>();
+        MapLocation[] bestLocs = new MapLocation[64];
+        int n = 0;
+        int maxDist = StrictMath.max(V.rc.getMapWidth(), V.rc.getMapHeight());
+        MapInfo[] vicinity = V.rc.senseNearbyMapInfos((V.round < 200-2*(maxDist/3))?20:2);
+        RobotUtils.shuffle(vicinity);
+        for (MapInfo mi : vicinity) {
+            if (!mi.isPassable()) continue;
+            int distToEnemy = weighting(mi.getMapLocation());
+            if (V.rc.sensePassability(mi.getMapLocation())
+                    && RobotUtils.validFlagPlacement(mi.getMapLocation())) {
+                if (distToEnemy > bestDist) {
+                    n = 0;
+                    bestDist = distToEnemy;
+                }
+                if (distToEnemy == bestDist) {
+                    bestLocs[n++] = mi.getMapLocation();
+                }
+            }
+            // This is debug to show the weightings of processed maplocations
+            int colour = (int)Math.max(Math.min(((distToEnemy-30)/40d)*255d, 255d), 0d);
+            V.rc.setIndicatorDot(mi.getMapLocation(), colour, colour, colour);
+        }
+        if (n > 0) {
+            bestLoc = bestLocs[0];
+            bestDist = V.home.distanceSquaredTo(bestLoc);
+            for (int i = 0; i < n; ++i) {
+                MapLocation loc = bestLocs[i];
+                int currDist = V.home.distanceSquaredTo(loc);
+                if (currDist < bestDist) {
+                    bestDist = currDist;
+                    bestLoc = loc;
+                }
+            }
+        }
+        if (bestLoc == null || bestLoc.equals(V.rc.getLocation())) {
+            // Stay still I guess
+            //if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
+            //V.setFlag = true;
+        } else {
+            BugNav.moveBetter(bestLoc);
+            //if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
+            V.rc.setIndicatorLine(V.rc.getLocation(),bestLoc, 255, 0, 255);
+            V.flagHome = V.rc.getLocation();
+        }
+        V.rc.writeSharedArray(V.selfIdx-Consts.LOWEST_FLAG_SITTER+Consts.LOWEST_FS_COMMS_IDX, Comms.encode(V.flagHome));
+    }
+    private static void GreedyFlagMove() throws GameActionException{/*
+        // Move the flag to a safe spot
+        RobotUtils.debug("greedyFlag");
+        List<MapLocation> listEnemySpawns = new ArrayList<MapLocation>();
+        for (MapLocation centre : V.spawnCentres) {
+            if (V.horizontal) {
+                listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, centre.y));
+                V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 0, 255);
+            }
+            if (V.vertical) {
+                listEnemySpawns.add(new MapLocation(centre.x, V.rc.getMapHeight()-1-centre.y));
+                V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 255, 0);
+            }
+            if (V.rotational) {
+                listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, V.rc.getMapHeight()-1-centre.y));
+                V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 0, 255, 255);
+            }
+        }
+        //RobotUtils.debug("V:"+V.vertical+",H:"+V.horizontal+",R:"+V.rotational);
+        MapLocation[] enemySpawns = listEnemySpawns.toArray(new MapLocation[0]);
+        RobotUtils.shuffle(V.shuffledDirections);
+        int bestDist = RobotUtils.closest(enemySpawns).distanceSquaredTo(V.rc.getLocation());
+        MapLocation bestLoc = null;
+        MapInfo[] vicinity = V.rc.senseNearbyMapInfos((V.round < 140)?20:2);
+        RobotUtils.shuffle(vicinity);
+        for (MapInfo mi : vicinity) {
+            if (!mi.isPassable() || mi.getMapLocation() == V.rc.getLocation()) continue;
+            int distToEnemy = RobotUtils.closest(enemySpawns, mi.getMapLocation()).distanceSquaredTo(mi.getMapLocation());
+            if (V.rc.sensePassability(mi.getMapLocation())
+                    && RobotUtils.validFlagPlacement(mi.getMapLocation())
+                    && distToEnemy > bestDist) {
+                bestLoc = mi.getMapLocation();
+                bestDist = distToEnemy;
+            }
+        }
+        if (bestLoc == null) {
+            // Stay still I guess
+            if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
+            //V.setFlag = true;
+        } else {
+            BugNav.moveBetter(bestLoc);
+            //if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
+            V.rc.setIndicatorLine(V.rc.getLocation(),bestLoc, 255, 0, 255);
+            V.flagHome = V.rc.getLocation();
+            V.rc.writeSharedArray(V.selfIdx-Consts.LOWEST_FLAG_SITTER+Consts.LOWEST_FS_COMMS_IDX, Comms.encode(V.flagHome));
+        }
+    */}
+    private static int UnrolledWeightingHelper(MapLocation loc) {
+        int x = loc.x, y = loc.y;
+        int wallWeight = 0;
+        int curr = loc.distanceSquaredTo(RobotUtils.closest(enemySpawns));
+        for (int offx = -3; offx <= 3; ++offx) {
+            for (int offy = -3; offy <= 3; ++offy) {
+                if (V.rc.onTheMap(new MapLocation(x+offx, y+offy))) {
+                    if (V.wallWeights[x+offx][y+offy] == 0) {
+                        V.wallWeights[x+offx][y+offy] = (new MapLocation(x+offx, y+offy)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                    }
+                    wallWeight += ((curr >= V.wallWeights[x+offx][y+offy])?1:0);
+                }
+            }
+        }
+        /* The unrolled loop
+        {
+            if (V.rc.onTheMap(new MapLocation(x + -2, y + -2))) {
+                if (V.wallWeights[x + -2][y + -2] == 0) {
+                    V.wallWeights[x + -2][y + -2] = (new MapLocation(x + -2, y + -2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -2][y + -2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -2, y + -1))) {
+                if (V.wallWeights[x + -2][y + -1] == 0) {
+                    V.wallWeights[x + -2][y + -1] = (new MapLocation(x + -2, y + -1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -2][y + -1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -2, y + 0))) {
+                if (V.wallWeights[x + -2][y + 0] == 0) {
+                    V.wallWeights[x + -2][y + 0] = (new MapLocation(x + -2, y + 0)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -2][y + 0]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -2, y + 1))) {
+                if (V.wallWeights[x + -2][y + 1] == 0) {
+                    V.wallWeights[x + -2][y + 1] = (new MapLocation(x + -2, y + 1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -2][y + 1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -2, y + 2))) {
+                if (V.wallWeights[x + -2][y + 2] == 0) {
+                    V.wallWeights[x + -2][y + 2] = (new MapLocation(x + -2, y + 2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -2][y + 2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -1, y + -2))) {
+                if (V.wallWeights[x + -1][y + -2] == 0) {
+                    V.wallWeights[x + -1][y + -2] = (new MapLocation(x + -1, y + -2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -1][y + -2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -1, y + -1))) {
+                if (V.wallWeights[x + -1][y + -1] == 0) {
+                    V.wallWeights[x + -1][y + -1] = (new MapLocation(x + -1, y + -1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -1][y + -1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -1, y + 0))) {
+                if (V.wallWeights[x + -1][y + 0] == 0) {
+                    V.wallWeights[x + -1][y + 0] = (new MapLocation(x + -1, y + 0)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -1][y + 0]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -1, y + 1))) {
+                if (V.wallWeights[x + -1][y + 1] == 0) {
+                    V.wallWeights[x + -1][y + 1] = (new MapLocation(x + -1, y + 1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -1][y + 1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + -1, y + 2))) {
+                if (V.wallWeights[x + -1][y + 2] == 0) {
+                    V.wallWeights[x + -1][y + 2] = (new MapLocation(x + -1, y + 2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + -1][y + 2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 0, y + -2))) {
+                if (V.wallWeights[x + 0][y + -2] == 0) {
+                    V.wallWeights[x + 0][y + -2] = (new MapLocation(x + 0, y + -2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 0][y + -2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 0, y + -1))) {
+                if (V.wallWeights[x + 0][y + -1] == 0) {
+                    V.wallWeights[x + 0][y + -1] = (new MapLocation(x + 0, y + -1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 0][y + -1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 0, y + 0))) {
+                if (V.wallWeights[x + 0][y + 0] == 0) {
+                    V.wallWeights[x + 0][y + 0] = (new MapLocation(x + 0, y + 0)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 0][y + 0]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 0, y + 1))) {
+                if (V.wallWeights[x + 0][y + 1] == 0) {
+                    V.wallWeights[x + 0][y + 1] = (new MapLocation(x + 0, y + 1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 0][y + 1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 0, y + 2))) {
+                if (V.wallWeights[x + 0][y + 2] == 0) {
+                    V.wallWeights[x + 0][y + 2] = (new MapLocation(x + 0, y + 2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 0][y + 2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 1, y + -2))) {
+                if (V.wallWeights[x + 1][y + -2] == 0) {
+                    V.wallWeights[x + 1][y + -2] = (new MapLocation(x + 1, y + -2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 1][y + -2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 1, y + -1))) {
+                if (V.wallWeights[x + 1][y + -1] == 0) {
+                    V.wallWeights[x + 1][y + -1] = (new MapLocation(x + 1, y + -1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 1][y + -1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 1, y + 0))) {
+                if (V.wallWeights[x + 1][y + 0] == 0) {
+                    V.wallWeights[x + 1][y + 0] = (new MapLocation(x + 1, y + 0)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 1][y + 0]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 1, y + 1))) {
+                if (V.wallWeights[x + 1][y + 1] == 0) {
+                    V.wallWeights[x + 1][y + 1] = (new MapLocation(x + 1, y + 1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 1][y + 1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 1, y + 2))) {
+                if (V.wallWeights[x + 1][y + 2] == 0) {
+                    V.wallWeights[x + 1][y + 2] = (new MapLocation(x + 1, y + 2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 1][y + 2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 2, y + -2))) {
+                if (V.wallWeights[x + 2][y + -2] == 0) {
+                    V.wallWeights[x + 2][y + -2] = (new MapLocation(x + 2, y + -2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 2][y + -2]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 2, y + -1))) {
+                if (V.wallWeights[x + 2][y + -1] == 0) {
+                    V.wallWeights[x + 2][y + -1] = (new MapLocation(x + 2, y + -1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 2][y + -1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 2, y + 0))) {
+                if (V.wallWeights[x + 2][y + 0] == 0) {
+                    V.wallWeights[x + 2][y + 0] = (new MapLocation(x + 2, y + 0)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 2][y + 0]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 2, y + 1))) {
+                if (V.wallWeights[x + 2][y + 1] == 0) {
+                    V.wallWeights[x + 2][y + 1] = (new MapLocation(x + 2, y + 1)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 2][y + 1]) ? 1 : 0);
+            }
+            if (V.rc.onTheMap(new MapLocation(x + 2, y + 2))) {
+                if (V.wallWeights[x + 2][y + 2] == 0) {
+                    V.wallWeights[x + 2][y + 2] = (new MapLocation(x + 2, y + 2)).distanceSquaredTo(RobotUtils.closest(enemySpawns));
+                }
+                wallWeight += ((curr >= V.wallWeights[x + 2][y + 2]) ? 1 : 0);
+            }
+        }
+        */
+        return wallWeight;
     }
 }

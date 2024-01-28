@@ -1,9 +1,6 @@
 package RushBot;
 
-import battlecode.common.Direction;
-import battlecode.common.GameActionException;
-import battlecode.common.GlobalUpgrade;
-import battlecode.common.MapLocation;
+import battlecode.common.*;
 
 import java.util.Comparator;
 import java.util.Random;
@@ -166,5 +163,50 @@ public class RobotUtils {
             }
         }
         return true;
+    }
+
+    /**
+     * For use by {@link RobotUtils#validFlagPlacement(MapLocation)}
+     */
+    static MapLocation other1 = null, other2 = null;
+    /**
+     * Last time {@link RobotUtils#other1} and {@link RobotUtils#other2}
+     * were updated
+     */
+    static int lastUpdateOther = -1;
+    /**
+     * Senses validFlagPlacements based on information from the comms array.
+     * Use this instead of <code>V.rc.senseLegalStartingFlagPlacement()</code>
+     * @param loc The MapLocation to check
+     * @return <code>true</code> if this is a legal flag starting position, <code>false</code> otherwise
+     */
+    public static boolean validFlagPlacement(MapLocation loc) throws GameActionException {
+        /*if (V.selfIdx < Consts.LOWEST_FLAG_SITTER || V.selfIdx > Consts.HIGHEST_FLAG_SITTER) {
+            // This robot isn't even a flag sitter, why call this?
+            return false;
+        }*/
+        if (lastUpdateOther != V.round) {
+            RobotUtils.debug("UPDATING CACHE");
+            lastUpdateOther = V.round;
+            int id = V.selfIdx - 47;
+            // switch case is bytecode saver
+            switch (id) {
+                case 0:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+1));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+2));
+                    break;
+                case 1:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+2));
+                    break;
+                case 2:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+1));
+                    break;
+            }
+        }
+        V.rc.setIndicatorDot(other1, 255, 127, 0);
+        V.rc.setIndicatorDot(other2, 255, 127, 0);
+        return StrictMath.min(loc.distanceSquaredTo(other1), loc.distanceSquaredTo(other2)) > GameConstants.MIN_FLAG_SPACING_SQUARED;
     }
 }

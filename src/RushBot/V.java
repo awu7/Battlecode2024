@@ -44,7 +44,7 @@ public class V {
      * This is (-1, -1) if the robot does not sit on a flag.
      * Is set once and never again on round 2.
      */
-    static MapLocation home = new MapLocation(-1, -1);
+    static MapLocation home = null;
     /**
      * The respawn location of the current flag that the robot
      * is guarding ((-1, -1) if the robot does not sit on a flag).
@@ -97,11 +97,18 @@ public class V {
      * <li>1 = wall</li>
      * <li>3 = undiscovered</li>
      * </ul>
-     */
-    static int[][] board;
-    /**
      * 2d array storing a simplified version of the board with weights, used for BFS.
      */
+    static int[][] board;
+
+    /**
+     * Used as a cache for weightings of walls when choosing flag placements
+     */
+    static int[][] wallWeights;
+    /**
+     * Used as a cache for the suitability of a tile as a flag spawn point
+     */
+    static int[][] flagWeights;
     static boolean vertical = true, horizontal = true, rotational = true;
     public enum Symmetry {
         UNKNOWN("Unknown"),

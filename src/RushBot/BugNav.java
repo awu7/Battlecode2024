@@ -23,10 +23,11 @@ public class BugNav {
         boolean moveCooldownDone = rc.getMovementCooldownTurns() == 0;
         MapLocation nextLoc = rc.adjacentLocation(d);
         if(!rc.onTheMap(nextLoc)) return false;
+        boolean validFlagCheck = V.flagHome != null && V.rc.hasFlag() && V.round < GameConstants.SETUP_ROUNDS;
         boolean nearWall = false;
         boolean hasCrumbs = rc.onTheMap(nextLoc) && rc.senseMapInfo(nextLoc).getCrumbs() > 0;
         for(MapInfo mi : rc.senseNearbyMapInfos(nextLoc, 2)) {
-            if(mi.isWall() || mi.isDam()) {
+            if(mi.isWall() || mi.isDam() || (validFlagCheck && !RobotUtils.validFlagPlacement(mi.getMapLocation()))) {
                 nearWall = true;
                 break;
             }
@@ -35,12 +36,14 @@ public class BugNav {
         MapInfo mi = rc.senseMapInfo(nextLoc);
         if(!moveCooldownDone) {
             // if it's water and not a dam, we can fill it
-            if(!mi.isWall() && !mi.isDam() && (!mi.isWater() || (fillableWater && !rc.hasFlag()))) {
+            if(!(validFlagCheck && !RobotUtils.validFlagPlacement(mi.getMapLocation()))
+                    && !mi.isWall() && !mi.isDam() && (!mi.isWater() || (fillableWater && !rc.hasFlag()))) {
                 return true;
             }
         } else {
             // if we can move there, or if we can fill it
-            if(rc.canMove(d) || (rc.canFill(nextLoc) && fillableWater && !rc.hasFlag())) {
+            if((rc.canMove(d) && !(validFlagCheck && !RobotUtils.validFlagPlacement(mi.getMapLocation())))
+                    || (rc.canFill(nextLoc) && fillableWater && !rc.hasFlag())) {
                 return true;
             }
         }

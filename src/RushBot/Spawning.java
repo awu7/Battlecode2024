@@ -6,7 +6,7 @@ public class Spawning {
     public static void attemptSpawn() throws GameActionException {
         MapLocation[] spawnLocs = V.spawns;
         RobotUtils.shuffle(spawnLocs);
-        if (V.rc.onTheMap(V.home)) {
+        if (V.home != null) {
             if (V.rc.canSpawn(V.home)) {
                 V.rc.spawn(V.home);
                 return;
