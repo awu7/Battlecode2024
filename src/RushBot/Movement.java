@@ -196,26 +196,42 @@ public class Movement {
         }
     }
     public static void SetupFlags() throws GameActionException {
+        if (!V.rc.hasFlag() && !V.setFlag) {
+            // Move towards the flag
+            // We don't have it and the flag is not set, go to the flagHome
+            if (!V.rc.getLocation().equals(V.flagHome)) {
+                BugNav.moveBetter(V.flagHome);
+                V.rc.setIndicatorLine(V.rc.getLocation(), V.flagHome, 0, 0, 255);
+            }
+            FlagInfo[] nearbyFlags = V.rc.senseNearbyFlags(2, V.rc.getTeam());
+            if (nearbyFlags.length > 0 && V.rc.canPickupFlag(nearbyFlags[0].getLocation())) {
+                V.rc.pickupFlag(nearbyFlags[0].getLocation());
+            }
+        }
         if (V.rc.hasFlag()) {
             // Move the flag to a safe spot
             RobotUtils.debug("Moving Flags");
             List<MapLocation> listEnemySpawns = new ArrayList<MapLocation>();
             for (MapLocation centre : V.spawnCentres) {
-                /*if (V.vertical) {
+                if (V.horizontal) {
                     listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, centre.y));
-                }*/
-                /*if (V.horizontal) {
+                    V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 0, 255);
+                }
+                if (V.vertical) {
                     listEnemySpawns.add(new MapLocation(centre.x, V.rc.getMapHeight()-1-centre.y));
-                }*/
+                    V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 255, 0);
+                }
                 if (V.rotational) {
                     listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, V.rc.getMapHeight()-1-centre.y));
+                    V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 0, 255, 255);
                 }
             }
+            RobotUtils.debug("V:"+V.vertical+",H:"+V.horizontal+",R:"+V.rotational);
             MapLocation[] enemySpawns = listEnemySpawns.toArray(new MapLocation[0]);
             RobotUtils.shuffle(V.shuffledDirections);
             int bestDist = RobotUtils.closest(enemySpawns).distanceSquaredTo(V.rc.getLocation());
             MapLocation bestLoc = null;
-            MapInfo[] vicinity = V.rc.senseNearbyMapInfos((V.round < 140)?10:2);
+            MapInfo[] vicinity = V.rc.senseNearbyMapInfos((V.round < 140)?20:2);
             RobotUtils.shuffle(vicinity);
             for (MapInfo mi : vicinity) {
                 if (!mi.isPassable() || mi.getMapLocation() == V.rc.getLocation()) continue;
@@ -229,22 +245,13 @@ public class Movement {
             }
             if (bestLoc == null) {
                 // Stay still I guess
-                V.rc.dropFlag(V.rc.getLocation());
+                if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
                 V.setFlag = true;
             } else {
                 BugNav.moveBetter(bestLoc);
+                if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
+                V.rc.setIndicatorLine(V.rc.getLocation(),bestLoc, 255, 0, 255);
                 V.flagHome = V.rc.getLocation();
-            }
-        } else if (!V.setFlag) {
-            // Move towards the flag
-            // We don't have it and the flag is not set, so it should still be at spawn
-            if (!V.rc.getLocation().equals(V.home)) {
-                BugNav.moveBetter(V.home);
-                V.rc.setIndicatorLine(V.rc.getLocation(), V.home, 0, 0, 255);
-            }
-            FlagInfo[] nearbyFlags = V.rc.senseNearbyFlags(2, V.rc.getTeam());
-            if (nearbyFlags.length > 0 && V.rc.canPickupFlag(nearbyFlags[0].getLocation())) {
-                V.rc.pickupFlag(nearbyFlags[0].getLocation());
             }
         }
     }

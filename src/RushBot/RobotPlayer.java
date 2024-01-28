@@ -61,7 +61,7 @@ public strictfp class RobotPlayer {
                     continue;
                 }
                 if(V.rc.onTheMap(V.flagHome)) {
-                    if (V.round >= GameConstants.SETUP_ROUNDS - 10) {
+                    if (V.round <= Consts.SYMMETRY_ONE + 4 || V.round >= GameConstants.SETUP_ROUNDS - 10) {
                         // By now we should have the flag in a secure location
                         // So we just need to walk to the flag or put traps on it if we are already there
                         if (!V.rc.getLocation().equals(V.flagHome)) {
