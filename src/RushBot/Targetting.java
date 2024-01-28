@@ -7,8 +7,7 @@ import java.util.Arrays;
 public class Targetting {
     public static void broadcastSwarmTarget(MapLocation loc) throws GameActionException {
         V.rc.writeSharedArray(0, V.rc.getID());
-        V.rc.writeSharedArray(1, loc.x);
-        V.rc.writeSharedArray(2, loc.y);
+        V.rc.writeSharedArray(1, (loc.x << 6) | loc.y);
     }
 
     public static MapLocation findTarget() throws GameActionException {
@@ -42,16 +41,16 @@ public class Targetting {
         if(enemies.length >= 1) {
             return RobotUtils.closest(enemyLocs);
         }
+        if(V.swarmEnd < V.rc.getRoundNum()) V.swarmTarget = new MapLocation(-1, -1);
+        if(V.rc.onTheMap(V.swarmTarget)) return V.swarmTarget;
         if(swarmLeader != 0) {
-            MapLocation newSwarmTarget = new MapLocation(V.rc.readSharedArray(1), V.rc.readSharedArray(2));
-            if(Math.sqrt(V.rc.getLocation().distanceSquaredTo(V.swarmTarget)) < StrictMath.max(V.height, V.width) * 0.6) {
+            int encodedLoc = V.rc.readSharedArray(1);
+            MapLocation newSwarmTarget = new MapLocation(encodedLoc >> 6, encodedLoc & ((1 << 6) - 1));
+            if(Math.sqrt(V.rc.getLocation().distanceSquaredTo(V.swarmTarget)) < StrictMath.max(V.height, V.width) * 0.5) {
                 V.swarmTarget = newSwarmTarget;
                 V.swarmEnd = V.rc.getRoundNum() + StrictMath.max(V.height, V.width) / 2;
             }
         }
-        if(V.swarmEnd < V.rc.getRoundNum()) V.swarmTarget = new MapLocation(-1, -1);
-        if(V.rc.onTheMap(V.swarmTarget)) return V.swarmTarget;
-        // System.out.println("Swarm retargeted");
         MapLocation[] possibleCrumbs = V.rc.senseNearbyCrumbs(-1);
         if(possibleCrumbs.length >= 1) return RobotUtils.closest(possibleCrumbs);
         MapLocation[] possibleSenses = V.rc.senseBroadcastFlagLocations();

@@ -7,7 +7,7 @@ import java.util.Random;
 public class BugNav {
     static int stackSize = 0;
     static int turnDir = 0;
-    static int stackPassIndex = 3;
+    static int stackPassIndex = 2;
     static Direction front;
     static Direction back;
     static RobotController rc;
