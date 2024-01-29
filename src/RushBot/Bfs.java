@@ -252,9 +252,9 @@ public class Bfs {
             } else if (i > 64) {
                 i = 64;
             }
-                for (int j = 4; j < i; j += 2) {
-                    Bfs.decodeBroadcast(j);
-                }
+            for (int j = 6; j < i; j += 2) {
+                Bfs.decodeBroadcast(j);
+            }
             if (V.round != Consts.SYMMETRY_ONE + 2) {
                 for (int j = i + 2; j < 64; j += 2) {
                     Bfs.decodeBroadcast(j);
