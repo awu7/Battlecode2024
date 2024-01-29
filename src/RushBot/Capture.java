@@ -9,6 +9,7 @@ public class Capture {
         RobotInfo[] enemies = V.rc.senseNearbyRobots(9, V.rc.getTeam().opponent());
         if (oppFlags.length > 0) {
             if (V.rc.hasFlag()) {
+                // RobotUtils.debug("B");
                 Bfs.moveBfsUtil();
                 return;
             }

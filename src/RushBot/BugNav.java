@@ -104,19 +104,21 @@ public class BugNav {
             stackSize = 1;
             back = front = rc.getLocation().directionTo(pos);
         }
-        RobotUtils.debug(back);
-        RobotUtils.debug(turnDir);
-        RobotUtils.debug(stackSize);
+        // RobotUtils.debug("Back " + back);
+        // RobotUtils.debug("TD " + turnDir);
+        // RobotUtils.debug("SS " + stackSize);
         MapLocation nextLoc = rc.adjacentLocation(back);
         if(!rc.onTheMap(nextLoc)) return;
         RobotInfo nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-        if(rc.canFill(nextLoc)) {
+        MapInfo nextInfo = rc.senseMapInfo(nextLoc);
+        if(nextInfo.isWater()) {
             // try adjacent dirs before filling
-            if(rc.canMove(turn(back, 1 - turnDir))) rc.move(turn(back, 1 - turnDir));
-            else if(rc.canMove(turn(back, turnDir))) rc.move(turn(back, turnDir));
-            else rc.fill(nextLoc);
+            if(nextInfo.getCrumbs() == 0 && rc.canMove(turn(back, 1 - turnDir))) rc.move(turn(back, 1 - turnDir));
+            else if(nextInfo.getCrumbs() == 0 && rc.canMove(turn(back, turnDir))) rc.move(turn(back, turnDir));
+            else if(rc.canFill(nextLoc)) rc.fill(nextLoc);
         }
         if(rc.canMove(back)) {
+            // RobotUtils.debug("mv");
             rc.move(back);
         }
         nextLoc = rc.getLocation().add(back);

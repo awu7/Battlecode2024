@@ -147,6 +147,7 @@ public class Bfs {
             return;
         }
         if (V.spawnBfs == null) {
+            // RobotUtils.debug("Q");
             BugNav.moveBetter(RobotUtils.closest(V.spawns));
             return;
         }
@@ -168,8 +169,10 @@ public class Bfs {
         }
         Arrays.sort(info, (a, b) -> a[0] == b[0] ? a[1] - b[1] : a[0] - b[0]);
         for (int i = 0; info[i][0] <= curDist; ++i) {
+            // RobotUtils.debug("I");
             Direction dir = V.shuffledDirections[info[i][2]];
             if (V.rc.canMove(dir)) {
+                // RobotUtils.debug("Z");
                 V.rc.move(dir);
                 return;
             }
@@ -180,6 +183,7 @@ public class Bfs {
             }
         }
         if (V.rc.isMovementReady() && V.rc.isActionReady()) {
+            // RobotUtils.debug("L");
             System.out.println("Didn't do anything?");
         }
     }

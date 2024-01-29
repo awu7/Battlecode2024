@@ -119,6 +119,9 @@ public strictfp class RobotPlayer {
                     }
                 }
                 Capture.capture();
+                if(V.rc.hasFlag()) {
+                    continue main;
+                }
                 if (Attacking.attackFlag()) {
                     Attacking.attackFlag();
                 }
