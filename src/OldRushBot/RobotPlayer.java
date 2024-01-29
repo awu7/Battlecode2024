@@ -12,19 +12,12 @@ public strictfp class RobotPlayer {
         while (true) {
             try {
                 V.round = V.rc.getRoundNum();
-                if (!V.rc.isSpawned() && V.round != Consts.BFS_ROUND + 2 && V.round != Consts.BFS_ROUND + 3) {
+                if (!V.rc.isSpawned() && V.round != Consts.BFS_ROUND + 2 && V.round != Consts.BFS_ROUND + 3 && V.round >= 3) {
+                    // Wait until 3rd round because we don't know if we are the flag sitter until 3rd round
                     Spawning.attemptSpawn();
                 }
                 if (V.round == 1) {
                     IDCompression.writeID();
-                    RobotUtils.shuffle(V.shuffledDirections);
-                    for (Direction dir : V.shuffledDirections) {
-                        if (V.rc.canMove(dir)) {
-                            if (!V.rc.senseMapInfo(V.rc.getLocation().add(dir)).isSpawnZone()) {
-                                V.rc.move(dir);
-                            }
-                        }
-                    }
                     continue;
                 } else if (V.round == 2) {
                     IDCompression.init();
@@ -33,9 +26,9 @@ public strictfp class RobotPlayer {
                         UnrolledUtils.clearSharedArray();
                     }
                     int f = 0;
-                    for (MapLocation m : V.rc.getAllySpawnLocations()) {
+                    for (MapLocation m : V.spawns) {
                         int adjCount = 0;
-                        for(MapLocation m2 : V.rc.getAllySpawnLocations()) {
+                        for(MapLocation m2 : V.spawns) {
                             if (m.isAdjacentTo(m2)) adjCount++;
                         }
                         if (adjCount == 9) {
@@ -45,25 +38,48 @@ public strictfp class RobotPlayer {
                     if (V.selfIdx >= 37 && V.selfIdx <= 39) {
                         V.isBuilder = true;
                     }
-                    if (V.selfIdx >= 40 && V.selfIdx <= 42) {
-                        V.home = V.spawnCentres[V.selfIdx - 40];
+                    if (V.selfIdx >= Consts.LOWEST_FLAG_SITTER && V.selfIdx <= Consts.HIGHEST_FLAG_SITTER) {
+                        V.home = V.spawnCentres[V.selfIdx - Consts.LOWEST_FLAG_SITTER];
+                        V.flagHome = V.home;
+                        V.rc.writeSharedArray(V.selfIdx-Consts.LOWEST_FLAG_SITTER+Consts.LOWEST_FS_COMMS_IDX, Comms.encode(V.flagHome));
                     }
                     continue;
                 }
+                //if (V.flagHome != null) RobotUtils.debug("FS");
                 if (!Bfs.precomp()) {
                     // run out of bytecode
                     continue;
                 }
-                RobotUtils.buyGlobal();
+                Upgrades.buyUpgrade();
                 if (!V.rc.isSpawned()) {
                     continue;
                 }
-                if(V.rc.onTheMap(V.home)) {
-                    if(!V.rc.getLocation().equals(V.home)) {
-                        BugNav.moveBetter(V.home);
-                        V.rc.setIndicatorLine(V.rc.getLocation(), V.home, 0, 0, 255);
+                RobotUtils.startRound();
+                if (V.flagHome != null) {
+                    if (V.round == 50) {
+                        V.wallWeights = new int[V.width][];
+                        for (int x = V.width; --x >= 0;) {
+                            UnrolledUtils.fill(V.wallWeights[x] = new int[V.height], 0);
+                        }
                     }
-                    if(V.rc.getLocation().equals(V.home)) Building.trapSpawn();
+                    if (V.round == 75) {
+                        V.flagWeights = new int[V.width][];
+                        for (int x = V.width; --x >= 0;) {
+                            UnrolledUtils.fill(V.flagWeights[x] = new int[V.height], -100);
+                        }
+                    }
+                    if (V.round <= Consts.SYMMETRY_ONE + 4 || V.round >= GameConstants.SETUP_ROUNDS-1) {
+                        // By now we should have the flag in a secure location
+                        // So we just need to walk to the flag or put traps on it if we are already there
+                        if (!V.rc.getLocation().equals(V.flagHome)) {
+                            BugNav.moveBetter(V.flagHome);
+                            V.rc.setIndicatorLine(V.rc.getLocation(), V.flagHome, 0, 0, 255);
+                        }
+                        if (V.rc.getLocation().equals(V.flagHome) && V.round >= GameConstants.SETUP_ROUNDS-10) Building.trapSpawn();
+                    } else {
+                        Movement.SetupFlags();
+                        continue;
+                    }
                 } else if (V.round <= 150) {
 //                    if(V.isBuilder) {
 //                        Building.farmBuildXp(6);
@@ -88,17 +104,17 @@ public strictfp class RobotPlayer {
 //                    Building.farmBuildXp(4);
 //                    Building.farmBuildXp(4);
 //                }
-                if (Attacking.attack()) {
-                    Attacking.attack();
-                }
-                Movement.AllMovements();
+                if (V.flagHome == null) Movement.AllMovements();
                 if (Attacking.attack()) {
                     Attacking.attack();
                 }
                 if (V.round > 1900) Building.farmBuildXp(3);
 //                if(V.rc.getCrumbs() > 5000) Building.buildTraps();
                 Healing.healFlag();
-                Healing.heal();
+                boolean nearEnemies = V.rc.senseNearbyRobots(-1, V.rc.getTeam().opponent()).length > 0;
+                if (!nearEnemies || (V.round - V.lastAttackTimestamp) > 4) {
+                    Healing.heal();
+                }
             } catch (GameActionException e) {
                 System.out.println("GameActionException");
                 e.printStackTrace();

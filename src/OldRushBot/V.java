@@ -39,7 +39,25 @@ public class V {
 
     static MapLocation centre;
     static MapLocation[] spawnCentres = new MapLocation[3];
-    static MapLocation home = new MapLocation(-1, -1);
+    /**
+     * The home (centre of a spawnpoint) of the current robot.
+     * This is (-1, -1) if the robot does not sit on a flag.
+     * Is set once and never again on round 2.
+     */
+    static MapLocation home = null;
+    /**
+     * The respawn location of the current flag that the robot
+     * is guarding ((-1, -1) if the robot does not sit on a flag).
+     * Difference between this and {@link V#home} is that <code>home</code>
+     * is only set once, while this changes depending on the location of
+     * the flag's respawn.
+     */
+    static MapLocation flagHome = null;
+    /**
+     * If this is a flag sitting robot, whether it has
+     * decided on a good place to position the flag
+     */
+    static boolean setFlag = false;
     static boolean isBuilder = false;
     static int movesLeft = 0;
     static MapLocation target;
@@ -56,24 +74,20 @@ public class V {
 
     static int id;
     /**
-     * ID compression system.
-     * Each robot starts with an ID, theoretically in the range [10000, 14096).
-     * ids is an int array which stores the actual ID of each robot.
-     * idx is a compressed mapping of each ID to its index in ids
-     * ids is sorted by turn order.
+     * ID compression system.<br>
+     * Each robot starts with an ID, theoretically in the range [10000, 14096).<br>
+     * <code>ids</code> is an int array which stores the actual ID of each robot.<br>
+     * <code>idx</code> is a compressed mapping of each ID to its index in ids<br>
+     * <code>ids</code> is sorted by turn order.
      */
     static int[] ids;
     static int[] idx;
     /**
-     * [2, 31] = scouters, broadcasts everything seen in allocated spot in array.
-     * [45, 49] = BFS bots, receives information from other bots and runs BFS in idle turns.
+     * [2, 31] = scouters, broadcasts everything seen in allocated spot in array.<br>
+     * [47, 49] = flag sitters, move the flags in setup and sit on them for the rest of the game.
      */
     static int selfIdx = -1;
 
-    static Direction[] stack = new Direction[10];
-    static int stackSize = 0;
-    static int turnDir = 0;
-    static int stackPassIndex = 3;
     static RobotInfo[] nearbyAllies;
 
     /**
@@ -83,11 +97,18 @@ public class V {
      * <li>1 = wall</li>
      * <li>3 = undiscovered</li>
      * </ul>
-     */
-    static int[][] board;
-    /**
      * 2d array storing a simplified version of the board with weights, used for BFS.
      */
+    static int[][] board;
+
+    /**
+     * Used as a cache for weightings of walls when choosing flag placements
+     */
+    static int[][] wallWeights;
+    /**
+     * Used as a cache for the suitability of a tile as a flag spawn point
+     */
+    static int[][] flagWeights;
     static boolean vertical = true, horizontal = true, rotational = true;
     public enum Symmetry {
         UNKNOWN("Unknown"),
@@ -109,7 +130,8 @@ public class V {
     static int heightMinus1,heightMinus2, heightMinus3;
     static int heightPlus1, heightPlus2;
 
-    static BfsCalc spawnBfs;
+    static BfsCalc spawnBfs = null;
+    static BfsCalc flagBfs = null;
 
     public enum BfsTarget {
         CENTRE,
@@ -124,5 +146,16 @@ public class V {
 
     static MapLocation targetCell;
 
-    static Team team;
+    static Team team, opp;
+
+    /**
+     * The timestamp (in rounds) of the last attack performed by this duck.
+     */
+    static int lastAttackTimestamp;
+
+    static MapLocation[] spawns;
+
+    static Micro micro;
+
+    static RobotInfo[] allies, enemies;
 }

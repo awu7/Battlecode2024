@@ -6,13 +6,14 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 public class BfsCalc {
-    private final StringBuilder boardBuilder;
+    private StringBuilder boardBuilder;
     private final int width, height;
     private final StringBuilder q;
+    public int globalMax;
 
     public boolean done;
 
-    public BfsCalc(int[][] boardArr, MapLocation[] sources) {
+    public BfsCalc(int[][] boardArr, MapLocation[] sources, boolean greedy) {
         boardBuilder = new StringBuilder();
         width = boardArr.length;
         height = boardArr[0].length;
@@ -159,6 +160,9 @@ public class BfsCalc {
                 fill.accept(boardArr[0]);
         }
         local.reverse();
+        if (greedy) {
+            boardBuilder = new StringBuilder(local.toString().replace('3', '0'));
+        }
         q = new StringBuilder();
         for (MapLocation loc: sources) {
             int i = loc.x * V.heightPlus1 + loc.y;
@@ -171,6 +175,7 @@ public class BfsCalc {
 
     public boolean compute(int minLeft) {
         StringBuilder localBb = boardBuilder, localQ = q;
+        int lastLoc = q.charAt(0);
         int wm1 = V.widthMinus1, h = V.height, hp1 = V.heightPlus1, hp2 = V.heightPlus2, hm1 = V.heightMinus1;
         while (q.length() > 0 && Clock.getBytecodesLeft() > minLeft) {
             int i = localQ.charAt(0), j;
@@ -238,7 +243,11 @@ public class BfsCalc {
         if (q.length() == 0 && !done) {
             done = true;
 //            System.out.println(boardBuilder.length());
-            System.out.println('\n' + boardBuilder.toString().replace('0', ' '));
+//            System.out.println('\n' + boardBuilder.toString().replace('0', ' '));
+            globalMax = boardBuilder.charAt(lastLoc) - 'A';
+            while (boardBuilder.indexOf(String.valueOf((char) ('A' + globalMax + 1))) != -1) {
+                globalMax++;
+            }
         }
         return q.length() == 0;
     }

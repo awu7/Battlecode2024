@@ -12,7 +12,6 @@ public strictfp class RobotPlayer {
         while (true) {
             try {
                 V.round = V.rc.getRoundNum();
-                if (V.round > 250) V.rc.resign(); // REMOVE THIS WHEN NOT TESTING
                 if (!V.rc.isSpawned() && V.round != Consts.BFS_ROUND + 2 && V.round != Consts.BFS_ROUND + 3 && V.round >= 3) {
                     // Wait until 3rd round because we don't know if we are the flag sitter until 3rd round
                     Spawning.attemptSpawn();

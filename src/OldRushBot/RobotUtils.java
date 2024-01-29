@@ -1,9 +1,6 @@
 package OldRushBot;
 
-import battlecode.common.Direction;
-import battlecode.common.GameActionException;
-import battlecode.common.GlobalUpgrade;
-import battlecode.common.MapLocation;
+import battlecode.common.*;
 
 import java.util.Comparator;
 import java.util.Random;
@@ -25,7 +22,7 @@ public class RobotUtils {
      * @return The smallest distance to the edge of the map
      */
     static int distFromEdge(MapLocation loc) {
-        return StrictMath.min(StrictMath.min(loc.x, V.width - loc.x), StrictMath.min(loc.y, V.height - loc.y));
+        return StrictMath.min(StrictMath.min(loc.x, V.width - 1 - loc.x), StrictMath.min(loc.y, V.height - 1 - loc.y));
     }
 
     /**
@@ -51,17 +48,18 @@ public class RobotUtils {
     }
 
     /**
-     * Helper function which finds the closest locatin to the robot's current location.
+     * Helper function which finds the closest location to a given location.
      * @param locs an array of locations.
+     * @param from location to find the closest location to, from <code>locs</code>
      * @return the closest location to the robot's current location.
      */
-    static MapLocation closest(MapLocation[] locs) {
+    static MapLocation closest(MapLocation[] locs, MapLocation from) {
         if(locs.length == 0) return new MapLocation(-1, -1);
         int mn = 1000000000;
         MapLocation res = locs[0];
         for (int i = 0; i < locs.length; i++) {
             if(!V.rc.onTheMap(locs[i])) continue;
-            int dist = locs[i].distanceSquaredTo(V.rc.getLocation());
+            int dist = locs[i].distanceSquaredTo(from);
             if (dist < mn) {
                 mn = dist;
                 res = locs[i];
@@ -71,25 +69,12 @@ public class RobotUtils {
     }
 
     /**
-     * Helper function attempting to buy global upgrades.
-     * Priority:
-     * <ol>
-     * <li><code>GlobalUpgrade.ATTACK</code></li>
-     * <li><code>GlobalUpgrade.HEALING</code></li>
-     * <li><code>GlobalUpgrade.CAPTURING</code></li>
-     * </ol>
-     * @throws GameActionException
+     * Helper function which finds the closest location to the robot's current location.
+     * @param locs an array of locations.
+     * @return the closest location to the robot's current location.
      */
-    public static void buyGlobal() throws GameActionException {
-        if (V.rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
-            V.rc.buyGlobal(GlobalUpgrade.ATTACK);
-        }
-        if (V.rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
-            V.rc.buyGlobal(GlobalUpgrade.HEALING);
-        }
-        if (V.rc.canBuyGlobal(GlobalUpgrade.CAPTURING)) {
-            V.rc.buyGlobal(GlobalUpgrade.CAPTURING);
-        }
+    static MapLocation closest(MapLocation[] locs) {
+        return closest(locs, V.rc.getLocation());
     }
 
     public static boolean sameTile(int a, int b) {
@@ -128,19 +113,37 @@ public class RobotUtils {
         for (int x = V.width; --x >= 0;) {
             UnrolledUtils.fill(V.board[x] = new int[V.height], 3);
         }
-        for (MapLocation spawn: V.rc.getAllySpawnLocations()) {
-            V.board[spawn.x][spawn.y] = 3;
-        }
         V.id = V.rc.getID();
         V.team = V.rc.getTeam();
+        V.opp = V.team.opponent();
+        V.spawns = V.rc.getAllySpawnLocations();
+        BugNav.init();
+        V.micro = new MicroAttacker();
+    }
+
+    public static void updateRobots() {
+        if (V.rc.isSpawned()) {
+            try {
+                V.allies = V.rc.senseNearbyRobots(-1, V.team);
+                V.enemies = V.rc.senseNearbyRobots(-1, V.opp);
+            } catch (GameActionException e) {
+                System.out.println("GameActionException");
+                e.printStackTrace();
+            }
+        } else {
+            V.allies = new RobotInfo[]{};
+            V.enemies = new RobotInfo[]{};
+        }
+    }
+
+    public static void startRound() {
+        updateRobots();
     }
 
     public static void endRound() {
         if (V.rc.onTheMap(V.targetCell) && V.rc.isSpawned()) {
             V.rc.setIndicatorLine(V.rc.getLocation(), V.targetCell, 0, 255, 0);
         }
-        RobotUtils.debug("TD: " + String.valueOf(V.turnDir));
-        RobotUtils.debug("SS: " + String.valueOf(V.stackSize));
         V.rc.setIndicatorString(V.indicatorString);
         V.indicatorString = "";
         int round = V.rc.getRoundNum();
@@ -159,5 +162,50 @@ public class RobotUtils {
             }
         }
         return true;
+    }
+
+    /**
+     * For use by {@link RobotUtils#validFlagPlacement(MapLocation)}
+     */
+    static MapLocation other1 = null, other2 = null;
+    /**
+     * Last time {@link RobotUtils#other1} and {@link RobotUtils#other2}
+     * were updated
+     */
+    static int lastUpdateOther = -1;
+    /**
+     * Senses validFlagPlacements based on information from the comms array.
+     * Use this instead of <code>V.rc.senseLegalStartingFlagPlacement()</code>
+     * @param loc The MapLocation to check
+     * @return <code>true</code> if this is a legal flag starting position, <code>false</code> otherwise
+     */
+    public static boolean validFlagPlacement(MapLocation loc) throws GameActionException {
+        /*if (V.selfIdx < Consts.LOWEST_FLAG_SITTER || V.selfIdx > Consts.HIGHEST_FLAG_SITTER) {
+            // This robot isn't even a flag sitter, why call this?
+            return false;
+        }*/
+        if (lastUpdateOther != V.round) {
+            RobotUtils.debug("UPDATING CACHE");
+            lastUpdateOther = V.round;
+            int id = V.selfIdx - 47;
+            // switch case is bytecode saver
+            switch (id) {
+                case 0:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+1));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+2));
+                    break;
+                case 1:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+2));
+                    break;
+                case 2:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+1));
+                    break;
+            }
+        }
+        V.rc.setIndicatorDot(other1, 255, 127, 0);
+        V.rc.setIndicatorDot(other2, 255, 127, 0);
+        return StrictMath.min(loc.distanceSquaredTo(other1), loc.distanceSquaredTo(other2)) > GameConstants.MIN_FLAG_SPACING_SQUARED;
     }
 }
