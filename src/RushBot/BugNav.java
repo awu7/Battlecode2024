@@ -70,13 +70,8 @@ public class BugNav {
         }
         if(stackSize != 0 && (dirToPos != front && rc.canMove(dirToPos) || rng.nextInt(32) == 0)) {
             RobotUtils.debug("Stack reset");
-            stackSize = 0;
-        }
-        if(stackSize == 0) {
             front = back = dirToPos;
             stackSize = 1;
-        }
-        if(stackSize == 1 && rng.nextInt(32) == 0) {
             turnDir = 1 - turnDir;
         }
         if(stackSize >= 3 && goodDir(turn(turn(back, 1 - turnDir), 1 - turnDir))) {
