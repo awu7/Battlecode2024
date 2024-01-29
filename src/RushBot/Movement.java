@@ -13,7 +13,31 @@ import java.util.Map;
 
 public class Movement {
     private static MapLocation[] enemySpawns;
+
+    public static boolean move(Direction dir) {
+        try {
+            V.rc.move(dir);
+            RobotUtils.updateRobots();
+            return true;
+        } catch (GameActionException e) {
+            System.out.println("GameActionException");
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public static boolean moveSafe(Direction dir) {
+        if (V.rc.canMove(dir)) {
+            return move(dir);
+        }
+        return false;
+    }
+
     public static void AllMovements() throws GameActionException {
+        if (V.enemies.length > 0) {
+            V.micro.doMicro();
+            return;
+        }
         RobotInfo[] enemies = V.rc.senseNearbyRobots(9, V.rc.getTeam().opponent());
         V.nearbyAllies = V.rc.senseNearbyRobots(-1, V.rc.getTeam());
         // Find all triggered stun traps;

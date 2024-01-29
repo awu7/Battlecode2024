@@ -146,7 +146,7 @@ public class V {
 
     static MapLocation targetCell;
 
-    static Team team;
+    static Team team, opp;
 
     /**
      * The timestamp (in rounds) of the last attack performed by this duck.
@@ -154,4 +154,8 @@ public class V {
     static int lastAttackTimestamp;
 
     static MapLocation[] spawns;
+
+    static Micro micro;
+
+    static RobotInfo[] allies, enemies;
 }

@@ -77,28 +77,6 @@ public class RobotUtils {
         return closest(locs, V.rc.getLocation());
     }
 
-    /**
-     * Helper function attempting to buy global upgrades.
-     * Priority:
-     * <ol>
-     * <li><code>GlobalUpgrade.ATTACK</code></li>
-     * <li><code>GlobalUpgrade.HEALING</code></li>
-     * <li><code>GlobalUpgrade.CAPTURING</code></li>
-     * </ol>
-     * @throws GameActionException
-     */
-    public static void buyGlobal() throws GameActionException {
-        if (V.rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
-            V.rc.buyGlobal(GlobalUpgrade.ATTACK);
-        }
-        if (V.rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
-            V.rc.buyGlobal(GlobalUpgrade.HEALING);
-        }
-        if (V.rc.canBuyGlobal(GlobalUpgrade.CAPTURING)) {
-            V.rc.buyGlobal(GlobalUpgrade.CAPTURING);
-        }
-    }
-
     public static boolean sameTile(int a, int b) {
         return a == 3 || b == 3 || a == b;
     }
@@ -137,8 +115,29 @@ public class RobotUtils {
         }
         V.id = V.rc.getID();
         V.team = V.rc.getTeam();
+        V.opp = V.team.opponent();
         V.spawns = V.rc.getAllySpawnLocations();
         BugNav.init();
+        V.micro = new MicroAttacker();
+    }
+
+    public static void updateRobots() {
+        if (V.rc.isSpawned()) {
+            try {
+                V.allies = V.rc.senseNearbyRobots(-1, V.team);
+                V.enemies = V.rc.senseNearbyRobots(-1, V.opp);
+            } catch (GameActionException e) {
+                System.out.println("GameActionException");
+                e.printStackTrace();
+            }
+        } else {
+            V.allies = new RobotInfo[]{};
+            V.enemies = new RobotInfo[]{};
+        }
+    }
+
+    public static void startRound() {
+        updateRobots();
     }
 
     public static void endRound() {

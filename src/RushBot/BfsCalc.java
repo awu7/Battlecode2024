@@ -243,7 +243,7 @@ public class BfsCalc {
         if (q.length() == 0 && !done) {
             done = true;
 //            System.out.println(boardBuilder.length());
-            System.out.println('\n' + boardBuilder.toString().replace('0', ' '));
+//            System.out.println('\n' + boardBuilder.toString().replace('0', ' '));
             globalMax = boardBuilder.charAt(lastLoc) - 'A';
             while (boardBuilder.indexOf(String.valueOf((char) ('A' + globalMax + 1))) != -1) {
                 globalMax++;

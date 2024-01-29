@@ -19,14 +19,6 @@ public strictfp class RobotPlayer {
                 }
                 if (V.round == 1) {
                     IDCompression.writeID();
-                    RobotUtils.shuffle(V.shuffledDirections);
-                    for (Direction dir : V.shuffledDirections) {
-                        if (V.rc.canMove(dir)) {
-                            if (!V.rc.senseMapInfo(V.rc.getLocation().add(dir)).isSpawnZone()) {
-                                V.rc.move(dir);
-                            }
-                        }
-                    }
                     continue;
                 } else if (V.round == 2) {
                     IDCompression.init();
@@ -59,10 +51,11 @@ public strictfp class RobotPlayer {
                     // run out of bytecode
                     continue;
                 }
-                RobotUtils.buyGlobal();
+                Upgrades.buyUpgrade();
                 if (!V.rc.isSpawned()) {
                     continue;
                 }
+                RobotUtils.startRound();
                 if (V.flagHome != null) {
                     if (V.round == 50) {
                         V.wallWeights = new int[V.width][];
@@ -112,9 +105,6 @@ public strictfp class RobotPlayer {
 //                    Building.farmBuildXp(4);
 //                    Building.farmBuildXp(4);
 //                }
-                if (Attacking.attack()) {
-                    Attacking.attack();
-                }
                 if (V.flagHome == null) Movement.AllMovements();
                 if (Attacking.attack()) {
                     Attacking.attack();

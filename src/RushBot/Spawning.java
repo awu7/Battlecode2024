@@ -3,18 +3,32 @@ package RushBot;
 import battlecode.common.*;
 
 public class Spawning {
+    public static boolean spawn(MapLocation loc) {
+        try {
+            V.rc.spawn(loc);
+            RobotUtils.updateRobots();
+            return true;
+        } catch (GameActionException e) {
+            System.out.println("GameActionException");
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public static void attemptSpawn() throws GameActionException {
         MapLocation[] spawnLocs = V.spawns;
         RobotUtils.shuffle(spawnLocs);
         if (V.home != null) {
             if (V.rc.canSpawn(V.home)) {
-                V.rc.spawn(V.home);
-                return;
+                if (spawn(V.home)) {
+                    return;
+                }
             } else {
                 for (Direction dir : V.directions) {
                     if (V.rc.canSpawn(V.home.add(dir))) {
-                        V.rc.spawn(V.home.add(dir));
-                        return;
+                        if (spawn(V.home.add(dir))) {
+                            return;
+                        }
                     }
                 }
                 return;
@@ -28,9 +42,10 @@ public class Spawning {
                 }
             }
             if (V.rc.canSpawn(loc)) {
-                V.rc.spawn(loc);
-                V.swarmTarget = new MapLocation(-1, -1);
-                break;
+                if (spawn(loc)) {
+                    V.swarmTarget = new MapLocation(-1, -1);
+                    break;
+                }
             }
         }
     }

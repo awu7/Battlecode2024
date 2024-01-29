@@ -42,9 +42,7 @@ public class Attacking {
         RobotInfo[] enemies;
         if (V.rc.isMovementReady()) {
             enemies = V.rc.senseNearbyRobots(11, V.team.opponent());
-            Arrays.sort(enemies, (a, b) -> {
-                return a.getHealth() == b.getHealth() ? b.getAttackLevel() - a.getAttackLevel() : a.getHealth() - b.getHealth();
-            });
+            Arrays.sort(enemies, (a, b) -> a.getHealth() == b.getHealth() ? b.getAttackLevel() - a.getAttackLevel() : a.getHealth() - b.getHealth());
             for (RobotInfo enemy: enemies) {
                 MapLocation loc = enemy.getLocation();
                 if (V.rc.canAttack(loc)) {
