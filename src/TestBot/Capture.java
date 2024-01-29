@@ -1,4 +1,4 @@
-package RushBot;
+package TestBot;
 
 import battlecode.common.*;
 
@@ -90,7 +90,7 @@ public class Capture {
                     MapLocation loc = flag.getLocation();
                     BugNav.moveBetter(loc);
                     if (V.rc.canSenseLocation(loc) && V.rc.canHeal(loc)) {
-                        Healing.healUtil(loc);
+                        V.rc.heal(loc);
                     }
                 }
             }

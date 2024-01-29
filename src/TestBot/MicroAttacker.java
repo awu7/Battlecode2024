@@ -1,4 +1,4 @@
-package RushBot;
+package TestBot;
 
 import battlecode.common.*;
 
@@ -6,6 +6,7 @@ public class MicroAttacker extends Micro {
     private static double[] damage = {150, 157.5, 160.5, 165, 195, 202.5, 240};
     private static final double[] cooldown = {20, 19, 18.6, 18, 16, 13, 8};
     private static double[] dps;
+    private static double[] hurtThreshold = {300, 300, 300, 300, 450, 450, 450};
 
     private boolean severelyHurt;
 
@@ -20,14 +21,8 @@ public class MicroAttacker extends Micro {
         if (!V.rc.isMovementReady()) {
             return false;
         }
-        if (V.id == 13604 && V.round == 203) {
-            System.out.println("hi");
-        }
 
-        severelyHurt = V.rc.getHealth() <= V.hurtThreshold[V.rc.getLevel(SkillType.ATTACK)];
-        if (severelyHurt) {
-            RobotUtils.debug("Hurt");
-        }
+        severelyHurt = V.rc.getHealth() <= hurtThreshold[V.rc.getLevel(SkillType.ATTACK)];
 
         MicroInfo[] microInfos = {
                 new MicroInfo(dirs[0]),
@@ -69,15 +64,15 @@ public class MicroAttacker extends Micro {
             microInfos[8].updateEnemy(loc, enemyDps);
         }
 
-        MicroInfo best = microInfos[0];
-        if (microInfos[1].isBetter(best)) best = microInfos[1];
-        if (microInfos[2].isBetter(best)) best = microInfos[2];
-        if (microInfos[3].isBetter(best)) best = microInfos[3];
-        if (microInfos[4].isBetter(best)) best = microInfos[4];
-        if (microInfos[5].isBetter(best)) best = microInfos[5];
-        if (microInfos[6].isBetter(best)) best = microInfos[6];
+        MicroInfo best = microInfos[8];
         if (microInfos[7].isBetter(best)) best = microInfos[7];
-        if (microInfos[8].isBetter(best)) best = microInfos[8];
+        if (microInfos[6].isBetter(best)) best = microInfos[6];
+        if (microInfos[5].isBetter(best)) best = microInfos[5];
+        if (microInfos[4].isBetter(best)) best = microInfos[4];
+        if (microInfos[3].isBetter(best)) best = microInfos[3];
+        if (microInfos[2].isBetter(best)) best = microInfos[2];
+        if (microInfos[1].isBetter(best)) best = microInfos[1];
+        if (microInfos[0].isBetter(best)) best = microInfos[0];
 
         if (best.dir == Direction.CENTER) {
             return true;
@@ -100,14 +95,11 @@ public class MicroAttacker extends Micro {
         int enemyReach = 0;
         int allyReach = 0;
         int territory = 0;
-        int closest = 10000;
-        int allyVisibleDps = 0;
-        int enemyVisibleDps = 0;
 
         public MicroInfo(Direction dir) {
             this.dir = dir;
             loc = V.rc.adjacentLocation(dir);
-            canMove = dir == Direction.CENTER || V.rc.canMove(dir);
+            canMove = V.rc.canMove(dir);
             if (canMove) {
                 try {
                     info = V.rc.senseMapInfo(loc);
@@ -125,86 +117,68 @@ public class MicroAttacker extends Micro {
 
         public void updateEnemy(MapLocation loc, double dps) {
             if (canMove) {
-                int dist = this.loc.distanceSquaredTo(loc);
-                closest = StrictMath.min(closest, dist);
-                if (dist <= GameConstants.INTERACT_RADIUS_SQUARED) {
+                if (this.loc.isWithinDistanceSquared(loc, GameConstants.INTERACT_RADIUS_SQUARED)) {
                     enemyDps += dps;
                     enemyReach++;
-                }
-                if (dist <= GameConstants.VISION_RADIUS_SQUARED) {
-                    enemyVisibleDps += dps;
                 }
             }
         }
 
         public void updateAlly(MapLocation loc, double dps) {
             if (canMove) {
-                int dist = this.loc.distanceSquaredTo(loc);
-                if (dist <= GameConstants.INTERACT_RADIUS_SQUARED) {
+                if (this.loc.isWithinDistanceSquared(loc, GameConstants.INTERACT_RADIUS_SQUARED)) {
                     allyDps += dps;
                     allyReach++;
                 }
-                if (dist <= GameConstants.VISION_RADIUS_SQUARED) {
-                    allyVisibleDps += dps;
-                }
             }
-        }
-
-        private int safe() {
-            if (!canMove) {
-                return -1;
-            }
-            if (enemyDps > 0) {
-                return 0;
-            }
-            if (enemyVisibleDps > allyVisibleDps) {
-                return 1;
-            }
-            return 2;
-        }
-
-        private boolean inRange() {
-            if (!V.rc.isActionReady() || severelyHurt) {
-                return true;
-            }
-            return closest <= GameConstants.INTERACT_RADIUS_SQUARED;
         }
 
         public boolean isBetter(MicroInfo m) {
-            if (safe() > m.safe()) {
+            if (canMove && !m.canMove) {
                 return true;
             }
-            if (safe() < m.safe()) {
+            if (!canMove && m.canMove) {
                 return false;
             }
-
-            if (inRange() && !m.inRange()) {
-                return true;
-            }
-            if (!inRange() && m.inRange()) {
-                return false;
-            }
-
             if (severelyHurt) {
-                if (closest > 11 && m.closest <= 11) {
+                if (enemyReach < m.enemyReach) {
                     return true;
                 }
-                if (closest <= 11 && m.closest > 11) {
+                if (enemyReach > m.enemyReach) {
                     return false;
                 }
-                if (allyVisibleDps > m.allyVisibleDps) {
+                if (allyReach > m.allyReach) {
                     return true;
                 }
-                if (allyVisibleDps < m.allyVisibleDps) {
+                if (allyReach < m.allyReach) {
                     return false;
                 }
             }
-
-            if (inRange()) {
-                return closest > m.closest;
-            } else {
-                return closest < m.closest;
+            if (enemyReach == 0 && m.enemyReach > 0) {
+                return false;
             }
+            if (enemyReach > 0 && m.enemyReach == 0) {
+                return true;
+            }
+            if (enemyDps < m.enemyDps) {
+                return true;
+            }
+            if (enemyDps > m.enemyDps) {
+                return false;
+            }
+            if (allyDps > m.allyDps) {
+                return true;
+            }
+            if (allyDps < m.allyDps) {
+                return false;
+            }
+            if (territory > m.territory) {
+                return true;
+            }
+            if (territory < m.territory) {
+                return false;
+            }
+            return false;
         }
     }
 

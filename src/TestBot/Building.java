@@ -1,4 +1,4 @@
-package RushBot;
+package TestBot;
 
 import battlecode.common.*;
 
@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Building {
-    private static final int[] cd = {5, 5, 5, 4, 4, 3, 3};
-
     public static void farmBuildXp(int level) throws GameActionException {
         if(V.rc.getLevel(SkillType.BUILD) < level) {
             for(Direction d : V.directions) {
@@ -75,39 +73,22 @@ public class Building {
 //            }
 //        }
 //    }
-    public static void trapConservatively() throws GameActionException {
-        while (V.rc.getActionCooldownTurns() + cd[V.rc.getLevel(SkillType.BUILD)] < 10) {
-            if (!buildTraps()) {
-                break;
-            }
-        }
-    }
-
-    public static boolean buildTraps() throws GameActionException {
+    public static void buildTraps() throws GameActionException {
         RobotUtils.shuffle(V.shuffledDirections);
         for (Direction dir : V.shuffledDirections) {
             MapLocation loc = V.rc.adjacentLocation(dir);
             if (loc.x % 3 == 0 && loc.y % 3 == 0) {
                 if (V.rc.canBuild(TrapType.STUN, loc)) {
                     V.rc.build(TrapType.STUN, loc);
-                    return true;
                 }
             }
         }
-        return false;
     }
 
     public static void trapSpawn() throws GameActionException {
-        if (V.enemies.length == 0) {
-            return;
-        }
-        if (!V.rc.isMovementReady()) {
-            return;
-        }
-        for (Direction dir: new Direction[]{Direction.NORTHEAST, Direction.SOUTHEAST, Direction.SOUTHWEST, Direction.NORTHWEST}) {
-            MapLocation loc = V.flagHome.add(dir);
-            if (V.rc.canBuild(TrapType.STUN, loc)) {
-                V.rc.build(TrapType.STUN, loc);
+        for (int i=0; i<3; i++){
+            if (V.rc.canBuild(TrapType.STUN, V.rc.getLocation().add(V.trapDirs[i]))) {
+                V.rc.build(TrapType.STUN, V.rc.getLocation().add(V.trapDirs[i]));
             }
         }
     }
@@ -135,7 +116,7 @@ public class Building {
             }
         }
         V.prevStuns = currStuns;
-//        RobotUtils.debug("currStuns: " + currStuns.size());
+        RobotUtils.debug("currStuns: " + currStuns.size());
         List<ActiveStun> newActiveStuns = new ArrayList<ActiveStun>();
         for (ActiveStun stun : V.activeStuns) {
             if (stun.updateRound()) {

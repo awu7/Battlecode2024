@@ -1,4 +1,4 @@
-package RushBot;
+package TestBot;
 
 import battlecode.common.*;
 import scala.Int;

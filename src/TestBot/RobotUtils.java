@@ -1,4 +1,4 @@
-package RushBot;
+package TestBot;
 
 import battlecode.common.*;
 
@@ -142,28 +142,6 @@ public class RobotUtils {
     }
 
     public static void endRound() {
-        if (V.round > 200) {
-            if (!Attacking.attacked && !Healing.healed) {
-                if (V.rc.isSpawned()) {
-                    if (V.rc.isActionReady() && V.enemies.length > 0) {
-                        V.history.append('?');
-                    } else {
-                        V.history.append(V.rc.getActionCooldownTurns());
-                    }
-                } else {
-                    V.history.append('X');
-                }
-            }
-            V.history.append(',');
-        }
-        Attacking.attacked = false;
-        Healing.healed = false;
-        if (V.round == 200) {
-            System.out.println(V.rc.getLocation());
-        }
-        if (V.round == 300) {
-            System.out.println(V.id + "," + V.history);
-        }
         if (V.rc.onTheMap(V.targetCell) && V.rc.isSpawned()) {
             V.rc.setIndicatorLine(V.rc.getLocation(), V.targetCell, 0, 255, 0);
         }
