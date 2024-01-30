@@ -89,6 +89,11 @@ public strictfp class RobotPlayer {
                         Movement.SetupFlags();
                         continue;
                     }
+                    if (V.enemies.length > 0) {
+                        if (Attacking.attack()) {
+                            Attacking.attack();
+                        }
+                    }
                     continue;
                 }
                 if (V.round <= 150) {

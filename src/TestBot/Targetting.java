@@ -33,6 +33,12 @@ public class Targetting {
         }
         MapLocation closestFlag = RobotUtils.closest(flagLocs);
         if(V.rc.onTheMap(closestFlag)) return closestFlag;
+        if (V.lastFlag) {
+            MapLocation[] broadcasts = V.rc.senseBroadcastFlagLocations();
+            if (broadcasts.length > 0) {
+                return broadcasts[0];
+            }
+        }
         RobotInfo[] enemies = V.rc.senseNearbyRobots(-1, V.rc.getTeam().opponent());
         MapLocation[] enemyLocs = new MapLocation[enemies.length];
         for(int i = 0; i < enemies.length; i++) {
@@ -64,6 +70,7 @@ public class Targetting {
         if(possibleSenses.length > 0) {
             // V.swarmTarget = possibleSenses[(int)Math.sqrt(V.rng.nextInt(possibleSenses.length * possibleSenses.length))];
             MapLocation broadcast = RobotUtils.closest(possibleSenses);
+            //MapLocation broadcast = possibleSenses[0];
             V.swarmTarget = new MapLocation(broadcast.x + V.rng.nextInt(11) - 5, broadcast.y + V.rng.nextInt(11) - 5);
             // V.swarmTarget = possibleSenses[0];
             V.swarmEnd = V.rc.getRoundNum() + StrictMath.max(V.height, V.width) / 2;

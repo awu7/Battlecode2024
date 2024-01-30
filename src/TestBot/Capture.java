@@ -5,6 +5,7 @@ import battlecode.common.*;
 public class Capture {
     public static void capture() throws GameActionException {
         FlagInfo[] oppFlags = V.rc.senseNearbyFlags(-1, V.rc.getTeam().opponent());
+        V.lastFlag = (V.rc.senseBroadcastFlagLocations().length + oppFlags.length) <= 1 || V.round >= 1750;
         if (oppFlags.length > 0) {
             if (V.rc.hasFlag()) {
                 // RobotUtils.debug("B");
@@ -81,16 +82,13 @@ public class Capture {
                     }
                 }
             }
-            V.lastFlag = (V.rc.senseBroadcastFlagLocations().length + oppFlags.length) <= 1 || V.round >= 1750;
-            if (V.lastFlag) RobotUtils.debug("LAST FLAG");
-            for (FlagInfo flag: V.rc.senseNearbyFlags(-1, V.rc.getTeam().opponent())) {
-                if (flag.isPickedUp() && V.lastFlag) {
+            if (V.lastFlag || true) {
+                //RobotUtils.debug("LAST FLAG");
+                FlagInfo flag = oppFlags[0];
+                if (flag.isPickedUp()) {
                     RobotUtils.debug("LET'S SWARM");
-                    MapLocation loc = flag.getLocation();
-                    BugNav.moveBetter(loc);
-                    if (V.rc.canSenseLocation(loc) && V.rc.canHeal(loc)) {
-                        Healing.healUtil(loc);
-                    }
+                    V.targetCell = flag.getLocation();
+                    V.micro.doMicro();
                 }
             }
         }

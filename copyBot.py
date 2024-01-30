@@ -1,7 +1,7 @@
 import os
 
-copyFrom = "TestBot"
-copyTo = "Merlin"
+copyFrom = "Merlin"
+copyTo = "TestBot"
 
 for fname in os.listdir("./src/" + copyFrom):
     if fname.endswith(".java"):

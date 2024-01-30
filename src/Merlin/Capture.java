@@ -82,8 +82,8 @@ public class Capture {
                     }
                 }
             }
-            if (V.lastFlag) {
-                RobotUtils.debug("LAST FLAG");
+            if (V.lastFlag || true) {
+                //RobotUtils.debug("LAST FLAG");
                 FlagInfo flag = oppFlags[0];
                 if (flag.isPickedUp()) {
                     RobotUtils.debug("LET'S SWARM");

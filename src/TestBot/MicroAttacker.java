@@ -88,8 +88,6 @@ public class MicroAttacker extends Micro {
                 }
             } else {
                 try {
-                    Building.updateStuns();
-                    V.targetCell = Targetting.findTarget();
                     BugNav.moveBetter(V.targetCell);
                 } catch (GameActionException e) {
                     System.out.println("GameActionException");

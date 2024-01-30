@@ -78,7 +78,8 @@ public class Building {
     public static void trapDam() {
         dirLoop: for (Direction dir: Direction.allDirections()) {
             MapLocation loc = V.rc.adjacentLocation(dir);
-            if (V.rc.canBuild(TrapType.STUN, loc)) {
+            TrapType chosenTrap = TrapType.STUN;
+            if (V.rc.canBuild(chosenTrap, loc)) {
                 try {
                     for (Direction dir2: V.directions) {
                         MapLocation loc2 = loc.add(dir2);
@@ -88,7 +89,7 @@ public class Building {
                     }
                     for (Direction dir2: Direction.cardinalDirections()) {
                         if (V.rc.onTheMap(loc.add(dir2)) && V.rc.senseMapInfo(loc.add(dir2)).isDam()) {
-                            V.rc.build(TrapType.STUN, loc);
+                            V.rc.build(chosenTrap, loc);
                             break;
                         }
                     }
@@ -101,12 +102,14 @@ public class Building {
     }
 
     public static void trapNeutral() {
+        if (V.rc.getCrumbs() < 110) return;
         for (Direction dir: Direction.allDirections()) {
             MapLocation loc = V.rc.adjacentLocation(dir);
-            if (V.rc.canBuild(TrapType.STUN, loc)) {
+            TrapType chosenTrap = (V.rng.nextBoolean())?TrapType.STUN:TrapType.EXPLOSIVE;
+            if (V.rc.canBuild(chosenTrap, loc)) {
                 try {
                     if (V.rc.senseMapInfo(loc).getTeamTerritory() == Team.NEUTRAL) {
-                        V.rc.build(TrapType.STUN, loc);
+                        V.rc.build(chosenTrap, loc);
                         if (V.rc.getActionCooldownTurns() + cd[V.rc.getLevel(SkillType.BUILD)] >= 10) {
                             return;
                         }
@@ -120,6 +123,7 @@ public class Building {
     }
 
     public static void trapConservatively() throws GameActionException {
+        if (V.rc.getCrumbs() < 200) return;
         if (V.selfIdx % 4 != 0) {
             return;
         }
@@ -204,10 +208,14 @@ public class Building {
         if (!V.rc.isMovementReady()) {
             return;
         }
-        for (Direction dir: new Direction[]{Direction.NORTHEAST, Direction.SOUTHEAST, Direction.SOUTHWEST, Direction.NORTHWEST}) {
+        for (Direction dir: new Direction[]{Direction.CENTER, Direction.NORTHEAST, Direction.SOUTHEAST, Direction.SOUTHWEST, Direction.NORTHWEST}) {
             MapLocation loc = V.flagHome.add(dir);
-            if (V.rc.canBuild(TrapType.STUN, loc)) {
-                V.rc.build(TrapType.STUN, loc);
+            if (V.rc.canFill(loc)) {
+                V.rc.fill(loc);
+            }
+            TrapType chosenTrap = (dir.equals(Direction.CENTER))?TrapType.WATER:TrapType.STUN;
+            if (V.rc.canBuild(chosenTrap, loc)) {
+                V.rc.build(chosenTrap, loc);
             }
         }
     }
