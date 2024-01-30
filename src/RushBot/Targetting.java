@@ -54,12 +54,14 @@ public class Targetting {
         MapLocation[] possibleCrumbs = V.rc.senseNearbyCrumbs(-1);
         if(possibleCrumbs.length >= 1) return RobotUtils.closest(possibleCrumbs);
         MapLocation[] possibleSenses = V.rc.senseBroadcastFlagLocations();
-        Arrays.sort(possibleSenses, (MapLocation a, MapLocation b) -> {
-            return b.distanceSquaredTo(V.rc.getLocation()) - a.distanceSquaredTo(V.rc.getLocation());
-        }); // yes this is supposed to be sorted furthest first
+        // Arrays.sort(possibleSenses, (MapLocation a, MapLocation b) -> {
+        //     return b.distanceSquaredTo(V.rc.getLocation()) - a.distanceSquaredTo(V.rc.getLocation());
+        // }); // yes this is supposed to be sorted furthest first
         if(possibleSenses.length > 0) {
-            //V.swarmTarget = possibleSenses[(int)Math.sqrt(V.rng.nextInt(possibleSenses.length * possibleSenses.length))];
-            V.swarmTarget = RobotUtils.closest(possibleSenses);
+            // V.swarmTarget = possibleSenses[(int)Math.sqrt(V.rng.nextInt(possibleSenses.length * possibleSenses.length))];
+            MapLocation broadcast = RobotUtils.closest(possibleSenses);
+            V.swarmTarget = new MapLocation(broadcast.x + V.rng.nextInt(11) - 5, broadcast.y + V.rng.nextInt(11) - 5);
+            // V.swarmTarget = possibleSenses[0];
             V.swarmEnd = V.rc.getRoundNum() + StrictMath.max(V.height, V.width) / 2;
             return V.swarmTarget;
         }
