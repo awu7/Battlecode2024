@@ -260,7 +260,7 @@ public class Movement {
         // Move the flag to a safe spot
         RobotUtils.debug("bfsFlag");
         List<MapLocation> listEnemySpawns = new ArrayList<MapLocation>();
-        for (MapLocation centre : V.spawnCentres) {
+        /*for (MapLocation centre : V.spawnCentres) {
             if (V.horizontal) {
                 listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, centre.y));
                 V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 255, 0, 255);
@@ -273,9 +273,9 @@ public class Movement {
                 listEnemySpawns.add(new MapLocation(V.rc.getMapWidth()-1-centre.x, V.rc.getMapHeight()-1-centre.y));
                 V.rc.setIndicatorDot(listEnemySpawns.get(listEnemySpawns.size()-1), 0, 255, 255);
             }
-        }
+        }*/
         //RobotUtils.debug("V:"+V.vertical+",H:"+V.horizontal+",R:"+V.rotational);
-        enemySpawns = listEnemySpawns.toArray(new MapLocation[0]);
+        //enemySpawns = listEnemySpawns.toArray(new MapLocation[0]);
         //RobotUtils.debug("V:"+V.vertical+",H:"+V.horizontal+",R:"+V.rotational);
         //RobotUtils.shuffle(V.shuffledDirections);
         int bestDist = weighting(V.rc.getLocation());
@@ -319,6 +319,11 @@ public class Movement {
             // Stay still I guess
             //if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());
             //V.setFlag = true;
+            if (!RobotUtils.validFlagPlacement(V.rc.getLocation())) {
+                // Attempt to get out of invalid zone
+                Direction attempt = RobotUtils.moveOut(V.rc.getLocation());
+                BugNav.moveBetter(V.rc.adjacentLocation(attempt));
+            }
         } else {
             BugNav.moveBetter(bestLoc);
             //if (V.rc.canDropFlag(V.rc.getLocation())) V.rc.dropFlag(V.rc.getLocation());

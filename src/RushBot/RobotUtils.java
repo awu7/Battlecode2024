@@ -232,4 +232,38 @@ public class RobotUtils {
         V.rc.setIndicatorDot(other2, 255, 127, 0);
         return StrictMath.min(loc.distanceSquaredTo(other1), loc.distanceSquaredTo(other2)) > GameConstants.MIN_FLAG_SPACING_SQUARED;
     }
+
+    /**
+     *
+     * @param loc
+     * @return
+     * @throws GameActionException
+     */
+    public static Direction moveOut(MapLocation loc) throws GameActionException {
+        if (lastUpdateOther != V.round) {
+            RobotUtils.debug("UPDATING CACHE");
+            lastUpdateOther = V.round;
+            int id = V.selfIdx - 47;
+            // switch case is bytecode saver
+            switch (id) {
+                case 0:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+1));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+2));
+                    break;
+                case 1:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+2));
+                    break;
+                case 2:
+                    other1 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX));
+                    other2 = Comms.decode(V.rc.readSharedArray(Consts.LOWEST_FS_COMMS_IDX+1));
+                    break;
+            }
+        }
+        if (loc.distanceSquaredTo(other1) < loc.distanceSquaredTo(other2)) {
+            return other1.directionTo(loc);
+        } else {
+            return other2.directionTo(loc);
+        }
+    }
 }

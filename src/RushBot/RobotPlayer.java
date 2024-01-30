@@ -56,6 +56,15 @@ public strictfp class RobotPlayer {
                 }
                 RobotUtils.startRound();
                 if (V.flagHome != null) {
+                    if (V.round >= GameConstants.SETUP_ROUNDS && V.round <= GameConstants.SETUP_ROUNDS+1) {
+                        try {
+                            if (V.rc.getLocation().equals(V.flagHome) && V.rc.senseNearbyFlags(1, V.rc.getTeam()).length <= 0) {
+                                V.flagHome = V.home;
+                            }
+                        } catch (GameActionException e) {
+                            // Don't do anything, rather just not be defending flag than crash and burn
+                        }
+                    }
                     if (V.round == 50) {
                         V.wallWeights = new int[V.width][];
                         for (int x = V.width; --x >= 0;) {

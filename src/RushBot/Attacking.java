@@ -81,8 +81,8 @@ public class Attacking {
             //                }
             //            }
             //        } else {
-            enemies = V.rc.senseNearbyRobots(4, V.team.opponent());
-            Arrays.sort(enemies, (a, b) -> {
+            enemies = V.rc.senseNearbyRobots(GameConstants.ATTACK_RADIUS_SQUARED, V.team.opponent());
+            /*Arrays.sort(enemies, (a, b) -> {
                 int aLevel = 2 * a.getAttackLevel() * a.getAttackLevel() + a.getHealLevel() * 4 + a.getBuildLevel();
                 int bLevel = 2 * b.getAttackLevel() * b.getAttackLevel() + b.getHealLevel() * 4 + b.getBuildLevel();
                 if (aLevel == bLevel) {
@@ -92,14 +92,34 @@ public class Attacking {
                     return a.getHealth() - b.getHealth();
                 }
                 return bLevel - aLevel;
-            });
+            });*/
+            if (enemies.length <= 0) return false;
+            RobotInfo bestTarget = enemies[0], a, b;
             for (RobotInfo enemy : enemies) {
-                MapLocation loc = enemy.getLocation();
-                if (V.rc.canAttack(loc)) {
-                    V.lastAttackTimestamp = V.round;
-                    attackUtil(loc);
-                    return true;
+                a = bestTarget;
+                b = enemy;
+                boolean newBest = false;
+                int aLevel = 2 * a.getAttackLevel() * a.getAttackLevel() + a.getHealLevel() * 4 + a.getBuildLevel();
+                int bLevel = 2 * b.getAttackLevel() * b.getAttackLevel() + b.getHealLevel() * 4 + b.getBuildLevel();
+                if (aLevel == bLevel) {
+                    if (a.getHealth() == b.getHealth()) {
+                        newBest = a.getID() > b.getID();
+                    } else {
+                        newBest = a.getHealth() > b.getHealth();
+                    }
+                } else {
+                    newBest = bLevel > aLevel;
                 }
+                if (newBest) {
+                    bestTarget = enemy;
+                }
+            }
+
+            MapLocation loc = bestTarget.getLocation();
+            if (V.rc.canAttack(loc)) {
+                V.lastAttackTimestamp = V.round;
+                attackUtil(loc);
+                return true;
             }
             //        }
         } catch (GameActionException e) {

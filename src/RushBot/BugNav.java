@@ -23,7 +23,7 @@ public class BugNav {
         boolean moveCooldownDone = rc.getMovementCooldownTurns() == 0;
         MapLocation nextLoc = rc.adjacentLocation(d);
         if(!rc.onTheMap(nextLoc)) return false;
-        boolean validFlagCheck = V.flagHome != null && V.rc.hasFlag() && V.round < GameConstants.SETUP_ROUNDS;
+        boolean validFlagCheck = V.flagHome != null && V.rc.hasFlag() && V.round < GameConstants.SETUP_ROUNDS && V.round > GameConstants.SETUP_ROUNDS-30;
         boolean nearWall = false;
         boolean hasCrumbs = rc.onTheMap(nextLoc) && rc.senseMapInfo(nextLoc).getCrumbs() > 0;
         for(MapInfo mi : rc.senseNearbyMapInfos(nextLoc, 2)) {
@@ -49,7 +49,7 @@ public class BugNav {
         }
         RobotInfo nextLocRobot = rc.senseRobotAtLocation(nextLoc);
         // otherwise, if we have the flag and the square we're trying to move to is obstructed by a friend
-        if(rc.hasFlag() && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam() && V.round > GameConstants.SETUP_ROUNDS) {
+        if(rc.hasFlag() && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
             RobotUtils.debug("Passing flag");
             return true;
         }
@@ -123,7 +123,7 @@ public class BugNav {
         nextLoc = rc.getLocation().add(back);
         if(rc.onTheMap(nextLoc)) {
             nextLocRobot = rc.senseRobotAtLocation(nextLoc);
-            if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam()) {
+            if(rc.canDropFlag(nextLoc) && nextLocRobot != null && nextLocRobot.getTeam() == rc.getTeam() && V.round >= GameConstants.SETUP_ROUNDS) {
                 rc.dropFlag(nextLoc);
                 RobotUtils.debug("Passed flag in moveBetter()");
                 writeStack();
