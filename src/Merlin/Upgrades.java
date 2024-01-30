@@ -1,4 +1,4 @@
-package TestBot;
+package Merlin;
 
 import battlecode.common.*;
 

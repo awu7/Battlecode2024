@@ -1,4 +1,4 @@
-package TestBot;
+package Merlin;
 
 import battlecode.common.*;
 
@@ -29,6 +29,8 @@ public class Movement {
 
     public static void AllMovements() throws GameActionException {
 //        if (V.allies.length < V.enemies.length * 3) {
+        Building.updateStuns();
+        V.targetCell = Targetting.findTarget();
         V.micro.doMicro();
 //        }
 //        RobotInfo[] enemies = V.rc.senseNearbyRobots(9, V.rc.getTeam().opponent());

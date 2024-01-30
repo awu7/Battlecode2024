@@ -1,4 +1,4 @@
-package TestBot;
+package Merlin;
 
 import battlecode.common.*;
 
@@ -33,6 +33,12 @@ public class Targetting {
         }
         MapLocation closestFlag = RobotUtils.closest(flagLocs);
         if(V.rc.onTheMap(closestFlag)) return closestFlag;
+        if (V.lastFlag) {
+            MapLocation[] broadcasts = V.rc.senseBroadcastFlagLocations();
+            if (broadcasts.length > 0) {
+                return broadcasts[0];
+            }
+        }
         RobotInfo[] enemies = V.rc.senseNearbyRobots(-1, V.rc.getTeam().opponent());
         MapLocation[] enemyLocs = new MapLocation[enemies.length];
         for(int i = 0; i < enemies.length; i++) {
