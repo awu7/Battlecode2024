@@ -1,15 +1,10 @@
 package RushBot;
 
-import GCMicro.BfsCalc;
 import battlecode.common.*;
-import org.apache.commons.collections.ArrayStack;
 
-import javax.swing.*;
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 public class Movement {
     private static MapLocation[] enemySpawns;

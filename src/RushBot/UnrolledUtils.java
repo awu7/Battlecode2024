@@ -1,10 +1,6 @@
 package RushBot;
 
-import battlecode.common.GameActionException;
-import battlecode.common.RobotController;
-
-import java.util.Random;
-import java.util.function.BiConsumer;
+import battlecode.common.*;
 
 public class UnrolledUtils {
     /**

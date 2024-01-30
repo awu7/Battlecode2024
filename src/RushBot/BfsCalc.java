@@ -2,7 +2,6 @@ package RushBot;
 
 import battlecode.common.*;
 
-import java.util.Locale;
 import java.util.function.Consumer;
 
 public class BfsCalc {
