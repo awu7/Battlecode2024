@@ -1,7 +1,6 @@
 package RushBot;
 
 import battlecode.common.*;
-import jdk.nashorn.internal.runtime.GlobalConstants;
 import java.util.Random;
 
 public class BugNav {

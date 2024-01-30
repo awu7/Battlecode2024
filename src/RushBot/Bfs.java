@@ -1,7 +1,6 @@
 package RushBot;
 
 import battlecode.common.*;
-import scala.Int;
 
 import java.util.Arrays;
 

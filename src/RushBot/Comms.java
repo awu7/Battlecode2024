@@ -2,8 +2,6 @@ package RushBot;
 
 import battlecode.common.*;
 
-import java.util.Map;
-
 /**
  * The communication array consists of 64 slots of 16-bit integers. <br>
  * <b>Please fill in this javadoc with all slots that are being used. </b><br>

@@ -3,9 +3,6 @@ package RushBot;
 import battlecode.common.GameActionException;
 import battlecode.common.RobotController;
 
-import java.util.Random;
-import java.util.function.BiConsumer;
-
 public class UnrolledUtils {
     /**
      * Helper function to fill an array with a value.

@@ -2,8 +2,6 @@ package RushBot;
 
 import battlecode.common.*;
 
-import java.util.Arrays;
-
 public class Attacking {
     public static boolean attacked = false;
     public static int idle = 0;
