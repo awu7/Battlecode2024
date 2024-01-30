@@ -48,7 +48,7 @@ public class Healing {
     }
 
     public static void healFlag() throws GameActionException {
-        RobotInfo[] friends = V.rc.senseNearbyRobots(4, V.team);
+        RobotInfo[] friends = V.rc.senseNearbyRobots(4, V.rc.getTeam());
         for (RobotInfo friend: friends) {
             if (friend.hasFlag()) {
                 MapLocation loc = friend.getLocation();

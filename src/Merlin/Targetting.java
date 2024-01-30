@@ -69,7 +69,8 @@ public class Targetting {
         // }); // yes this is supposed to be sorted furthest first
         if(possibleSenses.length > 0) {
             // V.swarmTarget = possibleSenses[(int)Math.sqrt(V.rng.nextInt(possibleSenses.length * possibleSenses.length))];
-            MapLocation broadcast = RobotUtils.closest(possibleSenses);
+            //MapLocation broadcast = RobotUtils.closest(possibleSenses);
+            MapLocation broadcast = possibleSenses[0];
             V.swarmTarget = new MapLocation(broadcast.x + V.rng.nextInt(11) - 5, broadcast.y + V.rng.nextInt(11) - 5);
             // V.swarmTarget = possibleSenses[0];
             V.swarmEnd = V.rc.getRoundNum() + StrictMath.max(V.height, V.width) / 2;
