@@ -1,6 +1,7 @@
 package RushBot;
 
 import battlecode.common.*;
+import jdk.nashorn.internal.runtime.GlobalConstants;
 import java.util.Random;
 
 public class BugNav {
@@ -55,7 +56,6 @@ public class BugNav {
         return false;
     }
     public static void moveBetter(MapLocation pos) throws GameActionException {
-        if (!V.rc.isMovementReady()) return;
         Direction dirToPos = rc.getLocation().directionTo(pos);
         if(stackSize == 0) {
             front = back = dirToPos;

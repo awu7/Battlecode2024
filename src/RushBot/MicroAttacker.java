@@ -17,6 +17,9 @@ public class MicroAttacker extends Micro {
 
     @Override
     public boolean doMicro() {
+        if (Attacking.attack()) {
+            Attacking.attack();
+        }
         if (!V.rc.isMovementReady()) {
             return false;
         }
@@ -86,7 +89,7 @@ public class MicroAttacker extends Micro {
         }
 
         if (best.dir == Direction.CENTER || V.rc.canMove(best.dir)) {
-            if (V.allies.length <= V.enemies.length * 5 || !V.rc.isActionReady()) {
+            if (V.allies.length + 1 <= V.enemies.length * 5 || !V.rc.isActionReady()) {
                 if (best.dir != Direction.CENTER) {
                     Movement.move(best.dir);
                 }
@@ -100,18 +103,10 @@ public class MicroAttacker extends Micro {
                     e.printStackTrace();
                 }
             }
-            if (best.closest <= 4) {
-                if (Attacking.attack()) {
-                    Attacking.attack();
-                }
-            } else {
-                if (V.rc.getHealth() <= V.severelyHurt[V.rc.getLevel(SkillType.ATTACK)]) {
-                    Healing.heal(true);
-                } else if (V.rc.getHealth() <= V.hurt[V.rc.getLevel(SkillType.ATTACK)]) {
-                    Healing.heal(false);
-                }
+            if (Attacking.attack()) {
+                Attacking.attack();
             }
-            return true;
+            Healing.heal(true);
         }
 
         return false;
@@ -195,109 +190,53 @@ public class MicroAttacker extends Micro {
         }
 
         private boolean inRange() {
-            if (!V.rc.isActionReady() || severelyHurt) {
-                return true;
-            }
             return closest <= 4;
         }
 
         public boolean isBetter(MicroInfo m) {
+            if (canMove != m.canMove) {
+                return canMove;
+            }
+            if (severelyHurt) {
+                if (inRange() != m.inRange()) {
+                    return !inRange();
+                }
+                if (enemyDps != m.enemyDps) {
+                    return enemyDps < m.enemyDps;
+                }
+                if (allyHps != m.allyHps) {
+                    return allyHps > m.allyHps;
+                }
+                if (enemyPotDps != m.enemyPotDps) {
+                    return enemyPotDps < m.enemyPotDps;
+                }
+                return closest < m.closest;
+            }
             if (V.rc.isActionReady()) {
+                if (inRange() != m.inRange()) {
+                    return inRange();
+                }
                 if (minHit == 1 && m.minHit > 1) {
-                    if (V.id == 10330) System.out.println("One hit");
                     return true;
                 }
                 if (minHit > 1 && m.minHit == 1) {
-                    if (V.id == 10330) System.out.println("Not one hit");
                     return false;
                 }
-                if (!severelyHurt) {
-                    if (minHit == 2 && m.minHit > 2) {
-                        return true;
-                    }
-                    if (minHit > 2 && m.minHit == 2) {
-                        return false;
-                    }
-                    if (minHealth < m.minHealth) {
-                        return true;
-                    }
-                    if (minHealth > m.minHealth) {
-                        return false;
-                    }
-                    if (inRange() && !m.inRange()) {
-                        if (V.id == 10330) System.out.println("In range");
-                        return true;
-                    }
-                    if (!inRange() && m.inRange()) {
-                        if (V.id == 10330) System.out.println("Not in range");
-                        return false;
-                    }
-                    if (inRange()) {
-                        if (V.id == 10330) System.out.println((enemyDps - allyHps) + " < " + (m.enemyDps - m.allyHps));
-                        return enemyDps - allyHps < m.enemyDps - m.allyHps;
-                    } else {
-                        if (closest < m.closest) {
-                            if (V.id == 10330) System.out.println("Closer");
-                            return true;
-                        }
-                        if (closest > m.closest) {
-                            if (V.id == 10330) System.out.println("Further");
-                            return false;
-                        }
-                        if (V.id == 10330) System.out.println(allyHps + " > " + m.allyHps);
-                        return allyHps > m.allyHps;
-                    }
-                }
-            }
-            if (safe() > m.safe()) {
-                if (V.id == 10330) System.out.println("Safer");
-                return true;
-            }
-            if (safe() < m.safe()) {
-                if (V.id == 10330) System.out.println("Less safe");
-                return false;
-            }
-
-            if (severelyHurt) {
-                if (inRange() && !m.inRange()) {
-                    return false;
-                }
-                if (!inRange() && m.inRange()) {
-                    return true;
-                }
-                if (enemyDps < m.enemyDps) {
-                    return true;
-                }
-                if (enemyDps > m.enemyDps) {
-                    return false;
-                }
-                if (enemyPotDps < m.enemyPotDps) {
-                    return true;
-                }
-                if (enemyPotDps > m.enemyPotDps) {
-                    return false;
-                }
-                if (closest < m.closest) {
-                    return false;
-                }
-                if (closest > m.closest) {
-                    return true;
-                }
-                return allyHps > m.allyHps;
-            }
-
-            if (inRange() && !m.inRange()) {
-                return true;
-            }
-            if (!inRange() && !m.inRange()) {
-                return false;
-            }
-
-            if (inRange()) {
-                return closest > m.closest;
             } else {
+                if (inRange() != m.inRange()) {
+                    return !inRange();
+                }
+            }
+            if (enemyDps != m.enemyDps) {
+                return enemyDps < m.enemyDps;
+            }
+            if (enemyPotDps != m.enemyPotDps) {
+                return enemyPotDps < m.enemyPotDps;
+            }
+            if (closest != m.closest) {
                 return closest < m.closest;
             }
+            return allyHps > m.allyHps;
         }
     }
 

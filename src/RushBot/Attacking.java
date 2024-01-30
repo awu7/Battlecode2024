@@ -83,13 +83,15 @@ public class Attacking {
             //        } else {
             enemies = V.rc.senseNearbyRobots(4, V.team.opponent());
             Arrays.sort(enemies, (a, b) -> {
-                if (a.getHealth() == b.getHealth()) {
-                    if (a.getAttackLevel() == b.getAttackLevel()) {
+                int aLevel = 2 * a.getAttackLevel() * a.getAttackLevel() + a.getHealLevel() * 4 + a.getBuildLevel();
+                int bLevel = 2 * b.getAttackLevel() * b.getAttackLevel() + b.getHealLevel() * 4 + b.getBuildLevel();
+                if (aLevel == bLevel) {
+                    if (a.getHealth() == b.getHealth()) {
                         return a.getID() - b.getID();
                     }
-                    return b.getAttackLevel() - a.getAttackLevel();
+                    return a.getHealth() - b.getHealth();
                 }
-                return a.getHealth() - b.getHealth();
+                return bLevel - aLevel;
             });
             for (RobotInfo enemy : enemies) {
                 MapLocation loc = enemy.getLocation();
