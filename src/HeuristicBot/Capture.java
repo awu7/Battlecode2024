@@ -1,4 +1,4 @@
-package TestBot;
+package HeuristicBot;
 
 import battlecode.common.*;
 

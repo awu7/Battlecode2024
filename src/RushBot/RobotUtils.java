@@ -117,9 +117,10 @@ public class RobotUtils {
         V.team = V.rc.getTeam();
         V.opp = V.team.opponent();
         V.spawns = V.rc.getAllySpawnLocations();
-        BugNav.init();
         V.micro = new MicroAttacker();
         V.lastAttackTimestamp = 200;
+        BugNav.init();
+        Healing.init();
     }
 
     public static void updateRobots() {

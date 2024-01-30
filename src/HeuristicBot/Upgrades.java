@@ -1,4 +1,4 @@
-package RushBot;
+package HeuristicBot;
 
 import battlecode.common.*;
 

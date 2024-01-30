@@ -158,4 +158,8 @@ public class V {
     static Micro micro;
 
     static RobotInfo[] allies, enemies;
+
+    public static StringBuilder history = new StringBuilder();
+
+    public static final double[] hurtThreshold = {300, 300, 300, 300, 450, 450, 450};
 }

@@ -20,11 +20,8 @@ public class MicroAttacker extends Micro {
         if (!V.rc.isMovementReady()) {
             return false;
         }
-        if (V.id == 13604 && V.round == 203) {
-            System.out.println("hi");
-        }
 
-        severelyHurt = V.rc.getHealth() <= V.hurtThreshold[V.rc.getLevel(SkillType.ATTACK)];
+        severelyHurt = V.rc.getHealth() <= V.severelyHurt[V.rc.getLevel(SkillType.ATTACK)];
         if (severelyHurt) {
             RobotUtils.debug("Hurt");
         }
@@ -44,29 +41,31 @@ public class MicroAttacker extends Micro {
         for (RobotInfo ally: V.allies) {
             MapLocation loc = ally.getLocation();
             double allyDps = dps[ally.getAttackLevel()];
-            microInfos[0].updateAlly(loc, allyDps);
-            microInfos[1].updateAlly(loc, allyDps);
-            microInfos[2].updateAlly(loc, allyDps);
-            microInfos[3].updateAlly(loc, allyDps);
-            microInfos[4].updateAlly(loc, allyDps);
-            microInfos[5].updateAlly(loc, allyDps);
-            microInfos[6].updateAlly(loc, allyDps);
-            microInfos[7].updateAlly(loc, allyDps);
-            microInfos[8].updateAlly(loc, allyDps);
+            double allyHps = Healing.hps[ally.getHealLevel()];
+            microInfos[0].updateAlly(loc, allyDps, allyHps);
+            microInfos[1].updateAlly(loc, allyDps, allyHps);
+            microInfos[2].updateAlly(loc, allyDps, allyHps);
+            microInfos[3].updateAlly(loc, allyDps, allyHps);
+            microInfos[4].updateAlly(loc, allyDps, allyHps);
+            microInfos[5].updateAlly(loc, allyDps, allyHps);
+            microInfos[6].updateAlly(loc, allyDps, allyHps);
+            microInfos[7].updateAlly(loc, allyDps, allyHps);
+            microInfos[8].updateAlly(loc, allyDps, allyHps);
         }
 
         for (RobotInfo enemy: V.enemies) {
             MapLocation loc = enemy.getLocation();
             double enemyDps = dps[enemy.getAttackLevel()];
-            microInfos[0].updateEnemy(loc, enemyDps);
-            microInfos[1].updateEnemy(loc, enemyDps);
-            microInfos[2].updateEnemy(loc, enemyDps);
-            microInfos[3].updateEnemy(loc, enemyDps);
-            microInfos[4].updateEnemy(loc, enemyDps);
-            microInfos[5].updateEnemy(loc, enemyDps);
-            microInfos[6].updateEnemy(loc, enemyDps);
-            microInfos[7].updateEnemy(loc, enemyDps);
-            microInfos[8].updateEnemy(loc, enemyDps);
+            int enemyHealth = enemy.getHealth();
+            microInfos[0].updateEnemy(loc, enemyDps, enemyHealth);
+            microInfos[1].updateEnemy(loc, enemyDps, enemyHealth);
+            microInfos[2].updateEnemy(loc, enemyDps, enemyHealth);
+            microInfos[3].updateEnemy(loc, enemyDps, enemyHealth);
+            microInfos[4].updateEnemy(loc, enemyDps, enemyHealth);
+            microInfos[5].updateEnemy(loc, enemyDps, enemyHealth);
+            microInfos[6].updateEnemy(loc, enemyDps, enemyHealth);
+            microInfos[7].updateEnemy(loc, enemyDps, enemyHealth);
+            microInfos[8].updateEnemy(loc, enemyDps, enemyHealth);
         }
 
         MicroInfo best = microInfos[0];
@@ -79,30 +78,61 @@ public class MicroAttacker extends Micro {
         if (microInfos[7].isBetter(best)) best = microInfos[7];
         if (microInfos[8].isBetter(best)) best = microInfos[8];
 
-        if (best.dir == Direction.CENTER) {
+        for (MicroInfo info: microInfos) {
+            if (V.rc.canMove(info.dir)) {
+                int val = 100 + info.safe() * 50;
+                V.rc.setIndicatorDot(info.loc, val, val, val);
+            }
+        }
+
+        if (best.dir == Direction.CENTER || V.rc.canMove(best.dir)) {
+            if (V.allies.length <= V.enemies.length * 5 || !V.rc.isActionReady()) {
+                if (best.dir != Direction.CENTER) {
+                    Movement.move(best.dir);
+                }
+            } else {
+                try {
+                    Building.updateStuns();
+                    V.targetCell = Targetting.findTarget();
+                    BugNav.moveBetter(V.targetCell);
+                } catch (GameActionException e) {
+                    System.out.println("GameActionException");
+                    e.printStackTrace();
+                }
+            }
+            if (best.closest <= 4) {
+                if (Attacking.attack()) {
+                    Attacking.attack();
+                }
+            } else {
+                if (V.rc.getHealth() <= V.severelyHurt[V.rc.getLevel(SkillType.ATTACK)]) {
+                    Healing.heal(true);
+                } else if (V.rc.getHealth() <= V.hurt[V.rc.getLevel(SkillType.ATTACK)]) {
+                    Healing.heal(false);
+                }
+            }
             return true;
         }
 
-        if (V.rc.canMove(best.dir)) {
-            Movement.move(best.dir);
-            return true;
-        }
         return false;
     }
 
     private class MicroInfo {
         Direction dir;
-        MapLocation loc;
+        public MapLocation loc;
         MapInfo info;
         boolean canMove;
         double enemyDps = 0;
-        double allyDps = 0;
+        double allyHps = 0;
+        double enemyPotDps = 0;
         int enemyReach = 0;
         int allyReach = 0;
         int territory = 0;
         int closest = 10000;
         int allyVisibleDps = 0;
         int enemyVisibleDps = 0;
+        int minHit = 10000;
+        int minHealth = 10000;
 
         public MicroInfo(Direction dir) {
             this.dir = dir;
@@ -123,28 +153,32 @@ public class MicroAttacker extends Micro {
             }
         }
 
-        public void updateEnemy(MapLocation loc, double dps) {
+        public void updateEnemy(MapLocation loc, double dps, int health) {
             if (canMove) {
                 int dist = this.loc.distanceSquaredTo(loc);
                 closest = StrictMath.min(closest, dist);
-                if (dist <= GameConstants.INTERACT_RADIUS_SQUARED) {
+                if (dist <= 4) {
                     enemyDps += dps;
                     enemyReach++;
+                    minHit = StrictMath.min(minHit, (health - 1) / V.rc.getAttackDamage() + 1);
+                    minHealth = StrictMath.min(minHealth, health);
+                } else if (dist <= 10) {
+                    enemyPotDps += dps;
                 }
-                if (dist <= GameConstants.VISION_RADIUS_SQUARED) {
+                if (dist <= 20) {
                     enemyVisibleDps += dps;
                 }
             }
         }
 
-        public void updateAlly(MapLocation loc, double dps) {
+        public void updateAlly(MapLocation loc, double dps, double hps) {
             if (canMove) {
                 int dist = this.loc.distanceSquaredTo(loc);
-                if (dist <= GameConstants.INTERACT_RADIUS_SQUARED) {
-                    allyDps += dps;
+                if (dist <= 4) {
+                    allyHps += hps;
                     allyReach++;
                 }
-                if (dist <= GameConstants.VISION_RADIUS_SQUARED) {
+                if (dist <= 20) {
                     allyVisibleDps += dps;
                 }
             }
@@ -157,47 +191,106 @@ public class MicroAttacker extends Micro {
             if (enemyDps > 0) {
                 return 0;
             }
-            if (enemyVisibleDps > allyVisibleDps) {
-                return 1;
-            }
-            return 2;
+            return 1;
         }
 
         private boolean inRange() {
             if (!V.rc.isActionReady() || severelyHurt) {
                 return true;
             }
-            return closest <= GameConstants.INTERACT_RADIUS_SQUARED;
+            return closest <= 4;
         }
 
         public boolean isBetter(MicroInfo m) {
+            if (V.rc.isActionReady()) {
+                if (minHit == 1 && m.minHit > 1) {
+                    if (V.id == 10330) System.out.println("One hit");
+                    return true;
+                }
+                if (minHit > 1 && m.minHit == 1) {
+                    if (V.id == 10330) System.out.println("Not one hit");
+                    return false;
+                }
+                if (!severelyHurt) {
+                    if (minHit == 2 && m.minHit > 2) {
+                        return true;
+                    }
+                    if (minHit > 2 && m.minHit == 2) {
+                        return false;
+                    }
+                    if (minHealth < m.minHealth) {
+                        return true;
+                    }
+                    if (minHealth > m.minHealth) {
+                        return false;
+                    }
+                    if (inRange() && !m.inRange()) {
+                        if (V.id == 10330) System.out.println("In range");
+                        return true;
+                    }
+                    if (!inRange() && m.inRange()) {
+                        if (V.id == 10330) System.out.println("Not in range");
+                        return false;
+                    }
+                    if (inRange()) {
+                        if (V.id == 10330) System.out.println((enemyDps - allyHps) + " < " + (m.enemyDps - m.allyHps));
+                        return enemyDps - allyHps < m.enemyDps - m.allyHps;
+                    } else {
+                        if (closest < m.closest) {
+                            if (V.id == 10330) System.out.println("Closer");
+                            return true;
+                        }
+                        if (closest > m.closest) {
+                            if (V.id == 10330) System.out.println("Further");
+                            return false;
+                        }
+                        if (V.id == 10330) System.out.println(allyHps + " > " + m.allyHps);
+                        return allyHps > m.allyHps;
+                    }
+                }
+            }
             if (safe() > m.safe()) {
+                if (V.id == 10330) System.out.println("Safer");
                 return true;
             }
             if (safe() < m.safe()) {
+                if (V.id == 10330) System.out.println("Less safe");
                 return false;
+            }
+
+            if (severelyHurt) {
+                if (inRange() && !m.inRange()) {
+                    return false;
+                }
+                if (!inRange() && m.inRange()) {
+                    return true;
+                }
+                if (enemyDps < m.enemyDps) {
+                    return true;
+                }
+                if (enemyDps > m.enemyDps) {
+                    return false;
+                }
+                if (enemyPotDps < m.enemyPotDps) {
+                    return true;
+                }
+                if (enemyPotDps > m.enemyPotDps) {
+                    return false;
+                }
+                if (closest < m.closest) {
+                    return false;
+                }
+                if (closest > m.closest) {
+                    return true;
+                }
+                return allyHps > m.allyHps;
             }
 
             if (inRange() && !m.inRange()) {
                 return true;
             }
-            if (!inRange() && m.inRange()) {
+            if (!inRange() && !m.inRange()) {
                 return false;
-            }
-
-            if (severelyHurt) {
-                if (closest > 11 && m.closest <= 11) {
-                    return true;
-                }
-                if (closest <= 11 && m.closest > 11) {
-                    return false;
-                }
-                if (allyVisibleDps > m.allyVisibleDps) {
-                    return true;
-                }
-                if (allyVisibleDps < m.allyVisibleDps) {
-                    return false;
-                }
             }
 
             if (inRange()) {

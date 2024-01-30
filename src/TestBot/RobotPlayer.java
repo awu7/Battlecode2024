@@ -12,7 +12,6 @@ public strictfp class RobotPlayer {
         main: while (true) {
             try {
                 V.round = V.rc.getRoundNum();
-//                if (V.round > 250) V.rc.resign(); // REMOVE THIS WHEN NOT TESTING
                 if (!V.rc.isSpawned() && V.round != Consts.BFS_ROUND + 2 && V.round != Consts.BFS_ROUND + 3 && V.round >= 3) {
                     // Wait until 3rd round because we don't know if we are the flag sitter until 3rd round
                     Spawning.attemptSpawn();
@@ -76,12 +75,14 @@ public strictfp class RobotPlayer {
                             BugNav.moveBetter(V.flagHome);
                             V.rc.setIndicatorLine(V.rc.getLocation(), V.flagHome, 0, 0, 255);
                         }
-                        if (V.rc.getLocation().equals(V.flagHome) && V.round >= GameConstants.SETUP_ROUNDS-10) Building.trapSpawn();
+                        Building.trapSpawn();
                     } else {
                         Movement.SetupFlags();
                         continue;
                     }
-                } else if (V.round <= 150) {
+                    continue;
+                }
+                if (V.round <= 150) {
 //                    if(V.isBuilder) {
 //                        Building.farmBuildXp(6);
 //                        Building.farmBuildXp(6);
@@ -94,7 +95,13 @@ public strictfp class RobotPlayer {
                 for (Direction dir: Direction.cardinalDirections()) {
                     MapLocation loc = V.rc.adjacentLocation(dir);
                     if (V.rc.onTheMap(loc) && V.rc.senseMapInfo(loc).isDam()) {
+                        RobotUtils.debug("Dam");
                         continue main;
+                    }
+                }
+                if (V.round >= 201) {
+                    if (V.round <= 250 || V.enemies.length > 0) {
+                        Building.trapConservatively();
                     }
                 }
                 Capture.capture();
@@ -108,21 +115,25 @@ public strictfp class RobotPlayer {
 //                    Building.farmBuildXp(4);
 //                    Building.farmBuildXp(4);
 //                }
-                if (V.flagHome == null) {
+                if (Attacking.attack()) {
+                    Attacking.attack();
+                }
+                if (V.flagHome == null && V.round != 201) {
                     Movement.AllMovements();
                 }
                 if (Attacking.attack()) {
                     Attacking.attack();
                 }
-                if (V.round >= 201) {
-                    Building.buildTraps();
+                if (V.rc.isActionReady() && !Attacking.attacked) {
+                    Attacking.idle++;
                 }
                 if (V.round > 1900) Building.farmBuildXp(3);
 //                if(V.rc.getCrumbs() > 5000) Building.buildTraps();
                 Healing.healFlag();
                 boolean nearEnemies = V.rc.senseNearbyRobots(-1, V.rc.getTeam().opponent()).length > 0;
-                if (!nearEnemies || (V.round - V.lastAttackTimestamp) > 4) {
+                if (!nearEnemies || Attacking.idle >= 3 || V.rc.getHealth() <= V.hurtThreshold[V.rc.getLevel(SkillType.ATTACK)]) {
                     Healing.heal();
+                    Attacking.idle = 0;
                 }
             } catch (GameActionException e) {
                 System.out.println("GameActionException");

@@ -1,4 +1,4 @@
-package TestBot;
+package HeuristicBot;
 
 import battlecode.common.*;
 
@@ -50,47 +50,48 @@ public class Attacking {
         return false;
     }
 
-    public static boolean attack() throws GameActionException {
+    public static boolean attack() {
         if (!V.rc.isActionReady()) {
             return false;
         }
-        RobotInfo[] enemies;
-//        if (V.rc.isMovementReady()) {
-//            enemies = V.rc.senseNearbyRobots(11, V.team.opponent());
-//            Arrays.sort(enemies, (a, b) -> a.getHealth() == b.getHealth() ? b.getAttackLevel() - a.getAttackLevel() : a.getHealth() - b.getHealth());
-//            for (RobotInfo enemy: enemies) {
-//                MapLocation loc = enemy.getLocation();
-//                if (V.rc.canAttack(loc)) {
-//                    V.lastAttackTimestamp = V.round;
-//                    V.rc.attack(loc);
-//                    return true;
-//                }
-//                if (V.rc.isMovementReady()) {
-//                    Direction dir = V.rc.getLocation().directionTo(loc);
-//                    for (Direction choice: new Direction[]{dir, dir.rotateLeft(), dir.rotateRight()}) {
-//                        if (V.rc.adjacentLocation(choice).isWithinDistanceSquared(loc, 4) && V.rc.canMove(choice)) {
-//                            V.rc.move(choice);
-//                            if (V.rc.canAttack(loc)) {
-//                                V.lastAttackTimestamp = V.round;
-//                                V.rc.attack(loc);
-//                            }
-//                            return true;
-//                        }
-//                    }
-//                }
-//            }
-//        } else {
+        try {
+            RobotInfo[] enemies;
+            //        if (V.rc.isMovementReady()) {
+            //            enemies = V.rc.senseNearbyRobots(11, V.team.opponent());
+            //            Arrays.sort(enemies, (a, b) -> a.getHealth() == b.getHealth() ? b.getAttackLevel() - a.getAttackLevel() : a.getHealth() - b.getHealth());
+            //            for (RobotInfo enemy: enemies) {
+            //                MapLocation loc = enemy.getLocation();
+            //                if (V.rc.canAttack(loc)) {
+            //                    V.lastAttackTimestamp = V.round;
+            //                    V.rc.attack(loc);
+            //                    return true;
+            //                }
+            //                if (V.rc.isMovementReady()) {
+            //                    Direction dir = V.rc.getLocation().directionTo(loc);
+            //                    for (Direction choice: new Direction[]{dir, dir.rotateLeft(), dir.rotateRight()}) {
+            //                        if (V.rc.adjacentLocation(choice).isWithinDistanceSquared(loc, 4) && V.rc.canMove(choice)) {
+            //                            V.rc.move(choice);
+            //                            if (V.rc.canAttack(loc)) {
+            //                                V.lastAttackTimestamp = V.round;
+            //                                V.rc.attack(loc);
+            //                            }
+            //                            return true;
+            //                        }
+            //                    }
+            //                }
+            //            }
+            //        } else {
             enemies = V.rc.senseNearbyRobots(4, V.team.opponent());
             Arrays.sort(enemies, (a, b) -> {
-                if (a.getAttackLevel() == b.getAttackLevel()) {
-                    if (a.getHealth() == b.getHealth()) {
+                if (a.getHealth() == b.getHealth()) {
+                    if (a.getAttackLevel() == b.getAttackLevel()) {
                         return a.getID() - b.getID();
                     }
-                    return a.getHealth() - b.getHealth();
+                    return b.getAttackLevel() - a.getAttackLevel();
                 }
-                return b.getAttackLevel() - a.getAttackLevel();
+                return a.getHealth() - b.getHealth();
             });
-            for (RobotInfo enemy: enemies) {
+            for (RobotInfo enemy : enemies) {
                 MapLocation loc = enemy.getLocation();
                 if (V.rc.canAttack(loc)) {
                     V.lastAttackTimestamp = V.round;
@@ -98,7 +99,11 @@ public class Attacking {
                     return true;
                 }
             }
-//        }
+            //        }
+        } catch (GameActionException e) {
+            System.out.println("GameActionException");
+            e.printStackTrace();
+        }
         return false;
     }
 }

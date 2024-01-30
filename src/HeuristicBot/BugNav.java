@@ -1,4 +1,4 @@
-package TestBot;
+package HeuristicBot;
 
 import battlecode.common.*;
 import jdk.nashorn.internal.runtime.GlobalConstants;

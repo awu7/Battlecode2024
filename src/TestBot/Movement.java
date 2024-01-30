@@ -34,7 +34,7 @@ public class Movement {
     }
 
     public static void AllMovements() throws GameActionException {
-        if (V.enemies.length > 0) {
+        if (V.allies.length < V.enemies.length * 3) {
             V.micro.doMicro();
             return;
         }
@@ -217,7 +217,7 @@ public class Movement {
             } else if (nearbyHP >= threshold || V.rc.senseNearbyFlags(13, V.rc.getTeam().opponent()).length == 0) {
                 BugNav.moveBetter(V.targetCell);
                 RobotUtils.debug(V.targetCell);
-                RobotUtils.debug("Nope, not kiting");
+//                RobotUtils.debug("Nope, not kiting");
             }
         }
     }
