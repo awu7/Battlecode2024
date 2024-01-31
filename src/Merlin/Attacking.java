@@ -69,14 +69,17 @@ public class Attacking {
             if (canAttack != a.canAttack) {
                 return canAttack;
             }
+            /*int thisW = -levels + 2*hits + (int)Math.sqrt(dist);
+            int aW = -a.levels + 2*a.hits+ (int)Math.sqrt(a.dist);
+            return thisW < aW;*/
             if (levels != a.levels) {
                 return levels > a.levels;
             }
-            if (dist != a.dist) {
-                return dist < a.dist;
-            }
             if (hits != a.hits) {
                 return hits < a.hits;
+            }
+            if (dist != a.dist) {
+                return dist < a.dist;
             }
             return id < a.id;
         }

@@ -111,7 +111,8 @@ public strictfp class RobotPlayer {
                     if (V.rc.onTheMap(loc) && V.rc.senseMapInfo(loc).isDam()) {
                         Building.trapDam();
                         if (V.enemies.length == 0) {
-                            boolean valid = false;
+                            continue;
+                            /*boolean valid = false;
                             allyLoop: for (RobotInfo ally: V.allies) {
                                 if (ally.getLocation().isWithinDistanceSquared(V.rc.getLocation(), 2)) {
                                     for (Direction dir2: Direction.cardinalDirections()) {
@@ -125,7 +126,7 @@ public strictfp class RobotPlayer {
                             }
                             if (!valid) {
                                 continue;
-                            }
+                            }*/
                         }
                         RobotUtils.debug("Dam");
                         continue main;
